@@ -9,6 +9,7 @@ import {
   type JiraCloudSourceConfig,
   type Project,
   ProjectStore,
+  type RepositoryConfig,
   resolvePaths,
   type TicketSourceConfig,
 } from '#src/core/project/index.ts'
@@ -50,6 +51,27 @@ export const testDatabase = (
 export const withDatabases = (project: Project, databases: readonly DatabaseConfig[]): Project => ({
   ...project,
   integrations: { ...project.integrations, databases: [...databases] },
+})
+
+export const testRepository = (
+  name: string,
+  overrides: Partial<Omit<RepositoryConfig, 'type'>> = {},
+): RepositoryConfig => ({
+  name,
+  type: 'git',
+  url: `git@git.acme.dev:acme/${name}.git`,
+  branches: { fix: 'main', feature: 'main' },
+  protectedBranches: ['main'],
+  runtime: {},
+  ...overrides,
+})
+
+export const withRepositories = (
+  project: Project,
+  repos: readonly RepositoryConfig[],
+): Project => ({
+  ...project,
+  integrations: { ...project.integrations, repos: [...repos] },
 })
 
 /** A project named "acme" with a JIRA ticket source (pass `null` for no ticket source). */

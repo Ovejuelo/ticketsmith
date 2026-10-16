@@ -44,6 +44,7 @@ describe('ticketsmith project add|remove', () => {
     expect(JSON.parse(cli.stdout).integrations).toEqual([
       { integration: 'tickets', configured: false, investigation: null },
       { integration: 'databases', configured: false, investigation: null },
+      { integration: 'repos', configured: false, investigation: null },
     ])
   })
 

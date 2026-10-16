@@ -10,6 +10,7 @@ import {
   withProjectDatabase,
 } from '../../core/storage/index.ts'
 import { isGitRepository } from './git-repository.ts'
+import { readRepoStates } from './investigate-repos.ts'
 
 type IntegrationStatus = {
   readonly integration: Integration
@@ -64,6 +65,19 @@ export const statusCommand = ({ io, servicesFor }: CommandDeps): Command =>
         await withProjectDatabase(paths.sqlite, (db) => db.steps()),
         describeStorageError,
       )
+      const repoStates = orFail(
+        await withProjectDatabase(paths.sqlite, (db) => readRepoStates(db)),
+        describeStorageError,
+      )
+      const repositories = (project.integrations.repos ?? []).map((repo) => {
+        const state = repoStates.get(repo.name)
+        return {
+          name: repo.name,
+          commit: state?.map.commit.id ?? null,
+          commitDate: state?.map.commit.date ?? null,
+          fetchedAt: state?.fetchedAt ?? null,
+        }
+      })
       const integrations: IntegrationStatus[] = INTEGRATIONS.map((integration) => ({
         integration,
         configured: project.integrations[integration] !== undefined,
@@ -81,6 +95,7 @@ export const statusCommand = ({ io, servicesFor }: CommandDeps): Command =>
               folder: paths.root,
               git,
               integrations,
+              repositories,
               knowledge,
             },
             null,
@@ -96,6 +111,17 @@ export const statusCommand = ({ io, servicesFor }: CommandDeps): Command =>
           '',
           pc.bold('Integrations'),
           ...integrations.map((s) => `  ${s.integration.padEnd(12)} ${describeIntegration(s)}`),
+          ...(repositories.length > 0
+            ? [
+                '',
+                pc.bold('Repositories'),
+                ...repositories.map((r) =>
+                  r.commit === null || r.fetchedAt === null
+                    ? `  ${r.name.padEnd(12)} ${pc.yellow('not cloned yet')}`
+                    : `  ${r.name.padEnd(12)} ${r.commit.slice(0, 7)} · fetched ${localTime(r.fetchedAt)}`,
+                ),
+              ]
+            : []),
           '',
           pc.bold('Knowledge'),
           ...(knowledge.length > 0 ? knowledge.map((file) => `  ${file}`) : ['  (none yet)']),

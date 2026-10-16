@@ -20,7 +20,9 @@ describe('ticketsmith project status', () => {
       integrations: [
         { integration: 'tickets', configured: true, investigation: null },
         { integration: 'databases', configured: false, investigation: null },
+        { integration: 'repos', configured: false, investigation: null },
       ],
+      repositories: [],
       knowledge: [],
     })
   })
@@ -35,6 +37,7 @@ describe('ticketsmith project status', () => {
           investigation: { status: 'done', detail: expect.stringContaining('JIRA project OPS') },
         },
         { integration: 'databases', configured: false },
+        { integration: 'repos', configured: false },
       ],
       knowledge: ['brief.md', 'tickets/jira.md'],
     })

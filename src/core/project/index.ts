@@ -3,6 +3,7 @@ export { type MigrationReport, migrateLegacyProfiles } from './migrate-profiles.
 export { type Paths, type ProjectPaths, projectPaths, resolvePaths } from './paths.ts'
 export {
   type AppConfig,
+  BranchNameSchema,
   configuredIntegrations,
   type DatabaseConfig,
   DatabaseConfigSchema,
@@ -20,6 +21,10 @@ export {
   type Project,
   ProjectNameSchema,
   ProjectSchema,
+  type RepositoryConfig,
+  RepositoryConfigSchema,
+  RepositoryNameSchema,
+  RepositoryUrlSchema,
   type TicketSourceConfig,
 } from './project.schema.ts'
 export { ProjectStore, type ProjectStoreError } from './project-store.ts'

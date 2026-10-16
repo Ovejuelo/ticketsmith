@@ -1,0 +1,20 @@
+{
+  "name": "acme-api",
+  "version": "1.0.0",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "mocha test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.9.0",
+    "sequelize": "^6.37.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.4.0"
+  }
+}

@@ -25,6 +25,8 @@ export type ProjectPaths = {
   readonly outDir: string
   readonly auditDir: string
   readonly cacheDir: string
+  /** Dedicated clones, one folder per repository. */
+  readonly reposDir: string
 }
 
 type Env = Readonly<Record<string, string | undefined>>
@@ -59,5 +61,6 @@ export const projectPaths = (root: string): ProjectPaths => {
     outDir: join(localDir, 'out'),
     auditDir: join(localDir, 'audit'),
     cacheDir: join(localDir, 'cache'),
+    reposDir: join(localDir, 'repos'),
   }
 }

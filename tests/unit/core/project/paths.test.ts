@@ -32,6 +32,7 @@ describe('projectPaths', () => {
       outDir: '/p/acme/local/out',
       auditDir: '/p/acme/local/audit',
       cacheDir: '/p/acme/local/cache',
+      reposDir: '/p/acme/local/repos',
     })
   })
 })

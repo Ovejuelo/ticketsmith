@@ -8,6 +8,8 @@ coverage/
 # folders such as src/core/audit/.
 .env
 .env.*
+# Fictional sample repositories need their example env file.
+!tests/fixtures/repos/**/.env.example
 /out/
 /logs/
 /audit/

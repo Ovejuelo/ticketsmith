@@ -1,0 +1,25 @@
+export {
+  type Commit,
+  cloneRepository,
+  describeGitFailure,
+  type FileContent,
+  type GrepMatch,
+  type GrepQuery,
+  grep,
+  listFiles,
+  readFile,
+  remoteBranches,
+  remoteDefaultBranch,
+  resolveCommit,
+  syncClone,
+  validateRef,
+  validateRepoPath,
+} from './git.ts'
+export {
+  cloneDir,
+  findRepository,
+  isCloned,
+  projectRepositories,
+  type Repository,
+  suggestRepositoryName,
+} from './repositories.ts'

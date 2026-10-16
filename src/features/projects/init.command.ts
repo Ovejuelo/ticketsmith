@@ -7,7 +7,6 @@ import {
   globalOptions,
   intro,
   log,
-  note,
   orFail,
   outro,
   spinner,
@@ -23,6 +22,7 @@ import { initGitRepository, isGitRepository } from './git-repository.ts'
 import { validateWith } from './jira-prompts.ts'
 import { BRIEF_FILE, investigateProject, pendingInvestigations } from './onboarding.ts'
 import { loadOrCreate, openByName, printReports } from './project-ui.ts'
+import { configureReposInteractively } from './repo-setup.ts'
 import {
   addTicketSourceFromFlags,
   configureTicketSourceInteractively,
@@ -85,7 +85,12 @@ export const initCommand = ({ io, servicesFor }: CommandDeps): Command =>
         project = result.project
         if (result.changed) reconfigured.push('databases')
       }
-      note('Repositories will join onboarding in the next phase.', 'Coming next')
+      if (await askConfirm('Use git repositories?', project.integrations.repos !== undefined)) {
+        const paths = orFail(await services.projects.locate(project.name), describeProjectError)
+        const result = await configureReposInteractively(services, project, paths)
+        project = result.project
+        if (result.changed) reconfigured.push('repos')
+      }
 
       orFail(await services.projects.setActiveProject(project.name), describeProjectError)
       const opened = await openByName(services, project.name)

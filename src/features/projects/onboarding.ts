@@ -14,6 +14,7 @@ import {
   withProjectDatabase,
 } from '../../core/storage/index.ts'
 import { DATABASES_KNOWLEDGE_DIR, investigateDatabases } from './investigate-databases.ts'
+import { investigateRepos, REPOS_KNOWLEDGE_DIR } from './investigate-repos.ts'
 import { investigateTickets, TICKETS_KNOWLEDGE_FILE } from './investigate-tickets.ts'
 
 export const BRIEF_FILE = 'brief.md'
@@ -24,7 +25,7 @@ type Investigator = {
   readonly run: typeof investigateTickets
 }
 
-/** One investigation per integration; later phases add databases and repositories here. */
+/** One investigation per integration. */
 const INVESTIGATORS: Readonly<Record<Integration, Investigator>> = {
   tickets: { title: 'JIRA', knowledgeFile: TICKETS_KNOWLEDGE_FILE, run: investigateTickets },
   databases: {
@@ -32,6 +33,7 @@ const INVESTIGATORS: Readonly<Record<Integration, Investigator>> = {
     knowledgeFile: `${DATABASES_KNOWLEDGE_DIR}/`,
     run: investigateDatabases,
   },
+  repos: { title: 'Repositories', knowledgeFile: `${REPOS_KNOWLEDGE_DIR}/`, run: investigateRepos },
 }
 
 export type StepReport = {
