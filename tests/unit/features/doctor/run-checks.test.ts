@@ -166,4 +166,31 @@ describe('runChecks: repositories', () => {
       detail: expect.stringMatching(/^Reachable; clone at main [0-9a-f]{7} \(\d{4}-\d{2}-\d{2}\)$/),
     })
   })
+
+  it('checks code changes: the branch pattern and the pull request token', async () => {
+    await cli.withProject(
+      withRepositories(testProject(null), [
+        testRepository('api', {
+          url: remote.url,
+          allowCodeChanges: true,
+          host: { type: 'github' },
+          branchPattern: 'hotfix/{key}-{slug}',
+        }),
+        testRepository('web', { url: remote.url, allowCodeChanges: true }),
+      ]),
+    )
+    const checks = await runChecks(cli.services, undefined)
+    expect(checks.find((check) => check.name === 'repo api code')).toEqual({
+      name: 'repo api code',
+      status: 'warn',
+      detail: expect.stringContaining('No github token yet'),
+    })
+    expect(checks.find((check) => check.name === 'repo api code')?.detail).toContain(
+      'hotfix/OPS-1-example',
+    )
+    expect(checks.find((check) => check.name === 'repo web code')).toMatchObject({
+      status: 'ok',
+      detail: expect.stringContaining('link only'),
+    })
+  })
 })

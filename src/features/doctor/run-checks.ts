@@ -4,16 +4,20 @@ import {
   configuredIntegrations,
   describeProjectError,
   type Project,
+  type RepositoryConfig,
   type TicketSourceConfig,
 } from '../../core/project/index.ts'
 import {
+  branchFor,
+  hostTypeOf,
   isCloned,
+  parseRemote,
   projectRepositories,
   type Repository,
   remoteBranches,
   resolveCommit,
 } from '../../core/repos/index.ts'
-import { describeSecretError } from '../../core/secrets/index.ts'
+import { describeSecretError, gitHostSecret } from '../../core/secrets/index.ts'
 import { DatabaseConnections, type Services } from '../../core/services/index.ts'
 import { describeTicketSourceError, type TicketSourceError } from '../../core/tickets/index.ts'
 import { checkNodeRuntime, fnmNodeVersions } from './node-runtime.ts'
@@ -73,7 +77,13 @@ export const runChecks = async (
   } else {
     const paths = await services.projects.locate(name.value)
     if (!paths.ok) add('repos', 'fail', describeProjectError(paths.error))
-    else await checkRepos(projectRepositories(project.value, paths.value), add)
+    else
+      await checkRepos(
+        services,
+        project.value,
+        projectRepositories(project.value, paths.value),
+        add,
+      )
   }
   return checks
 }
@@ -184,7 +194,12 @@ const checkDatabases = async (
 }
 
 /** Remote access with the user's git credentials, base branches, the clone and the runtime. */
-const checkRepos = async (repositories: readonly Repository[], add: AddCheck): Promise<void> => {
+const checkRepos = async (
+  services: Services,
+  project: Project,
+  repositories: readonly Repository[],
+  add: AddCheck,
+): Promise<void> => {
   let installed: readonly string[] | null | undefined
   for (const { config, dir } of repositories) {
     const name = `repo ${config.name}`
@@ -214,6 +229,7 @@ const checkRepos = async (repositories: readonly Repository[], add: AddCheck): P
         )
       }
     }
+    if (config.allowCodeChanges) await checkCodeChanges(services, project, config, add)
     if (config.runtime.node !== undefined) {
       installed ??= await fnmNodeVersions()
       const runtime = checkNodeRuntime(config.runtime.node, installed)
@@ -240,4 +256,37 @@ const checkAgent = async (services: Services, add: AddCheck): Promise<void> => {
       `Claude Code ${status.value.version}, signed in${status.value.authMethod === undefined ? '' : ` (${status.value.authMethod})`}`,
     )
   }
+}
+
+/** Repositories where the agent may change code: a valid branch pattern and, for PRs, a host token. */
+const checkCodeChanges = async (
+  services: Services,
+  project: Project,
+  config: RepositoryConfig,
+  add: AddCheck,
+): Promise<void> => {
+  const name = `repo ${config.name} code`
+  const branch = branchFor(config.branchPattern, 'OPS-1', 'example')
+  if (!branch.ok) {
+    add(name, 'fail', branch.error)
+    return
+  }
+  const type = hostTypeOf(config)
+  const remote = parseRemote(config.url)
+  if (type === 'none' || remote === null) {
+    add(
+      name,
+      'ok',
+      `Code changes on; branches like ${branch.value}. Pull requests: link only (no provider for this host)`,
+    )
+    return
+  }
+  const token = await services.loadSecret(project.name, gitHostSecret(remote.hostname))
+  add(
+    name,
+    token.ok && token.value !== null ? 'ok' : 'warn',
+    token.ok && token.value !== null
+      ? `Code changes on; branches like ${branch.value}; ${type} pull requests through the API`
+      : `Code changes on; branches like ${branch.value}. No ${type} token yet: \`ticketsmith code push\` asks for one, or you get a link`,
+  )
 }
