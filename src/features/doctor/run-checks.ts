@@ -165,14 +165,17 @@ const checkDatabases = async (
         continue
       }
       const canWrite = await adapter.value.accountCanWrite()
+      const changes = config.allowChanges
+        ? ' The agent may propose changes here; each one needs your approval (`ticketsmith changes approve`).'
+        : ''
       if (canWrite.ok && canWrite.value) {
         add(
           name,
           'warn',
-          'Reachable; the account can write (Ticketsmith only runs guarded reads in READ ONLY transactions)',
+          `Reachable; the account can write (Ticketsmith only runs guarded reads in READ ONLY transactions, and writes only approved changes).${changes}`,
         )
       } else {
-        add(name, 'ok', 'Reachable with a read-only account')
+        add(name, 'ok', `Reachable with a read-only account.${changes}`)
       }
     }
   } finally {
