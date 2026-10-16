@@ -96,6 +96,10 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
     )
     .option('--branch-pattern <pattern>', 'repos: ticket branch name, e.g. hotfix/{key}-{slug}')
     .option('--pr-target <branch>', 'repos: pull request target (default: the fix branch)')
+    .option(
+      '--feature-branch-pattern <pattern>',
+      'repos: new-functionality branch name, e.g. feature/{key}-{slug}',
+    )
     .action(async (integration: Integration, flags: AddFlags, command: Command) => {
       const services = servicesFor(command)
       const { project, paths } = await openProject(services, globalOptions(command).project)

@@ -38,6 +38,7 @@ export type RepoFlags = {
   readonly allowCodeChanges?: boolean
   readonly branchPattern?: string
   readonly prTarget?: string
+  readonly featureBranchPattern?: string
 }
 
 type Remote = { readonly defaultBranch: string; readonly branches: readonly string[] }
@@ -145,6 +146,9 @@ export const addRepositoryFromFlags = async (
       allowCodeChanges: flags.allowCodeChanges ?? false,
       ...(flags.branchPattern === undefined ? {} : { branchPattern: flags.branchPattern }),
       ...(flags.prTarget === undefined ? {} : { prTarget: flags.prTarget }),
+      ...(flags.featureBranchPattern === undefined
+        ? {}
+        : { featureBranchPattern: flags.featureBranchPattern }),
     }),
     String,
   )
