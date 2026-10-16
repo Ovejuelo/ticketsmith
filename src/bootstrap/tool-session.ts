@@ -65,6 +65,7 @@ export const openToolSession = async (
         ? null
         : {
             connections: databases,
+            changes: { dir: paths.changesDir, maxRows: project.changes.maxRows },
             tables: async (target) => {
               const read = await withProjectDatabase(paths.sqlite, (db) =>
                 db.catalog(

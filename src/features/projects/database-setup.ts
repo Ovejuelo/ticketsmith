@@ -32,6 +32,7 @@ export type DatabaseFlags = {
   readonly user?: string
   readonly group?: string
   readonly ssl?: boolean
+  readonly allowChanges?: boolean
 }
 
 export type DatabaseCheck = { readonly canWrite: boolean }
@@ -73,6 +74,7 @@ const parseConfig = (flags: DatabaseFlags): Result<DatabaseConfig, string> => {
     user: flags.user,
     group: flags.group || undefined,
     ssl: flags.ssl ?? false,
+    allowChanges: flags.allowChanges ?? false,
   })
   return parsed.success ? ok(parsed.data) : err(z.prettifyError(parsed.error))
 }
@@ -160,6 +162,10 @@ export const configureDatabasesInteractively = async (
       validate: (v) => (v.trim() === '' ? undefined : validateWith(DatabaseNameSchema)(v)),
     })
     const password = await askSecret(`Password for ${user}@${host} (stored in the system keychain)`)
+    const allowChanges = await askConfirm(
+      'Let the agent propose changes (INSERT/UPDATE) here? You still approve each one in the terminal.',
+      template?.allowChanges ?? false,
+    )
 
     const config = parseConfig({
       name,
@@ -169,6 +175,7 @@ export const configureDatabasesInteractively = async (
       user,
       group,
       ssl: template?.ssl ?? false,
+      allowChanges,
     })
     if (!config.ok) {
       log.error(config.error)

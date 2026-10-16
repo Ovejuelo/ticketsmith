@@ -16,6 +16,8 @@ export type DatabasesToolContext = {
   readonly connections: DatabaseConnections
   /** Investigated tables of a target (group or ungrouped database) from the local catalog. */
   tables(target: string): Promise<Result<readonly TableInfo[], string>>
+  /** Where proposed changes are stored (local/changes) and the project's row limit per change. */
+  readonly changes: { readonly dir: string; readonly maxRows: number }
 }
 
 export type ReposToolContext = {
@@ -51,6 +53,8 @@ export type Tool = {
   readonly requires: readonly Integration[]
   /** Read-only tools are annotated as such; write tools must go through human approval. */
   readonly readOnly: boolean
+  /** Extra condition on the project's setup (e.g. a database allows changes); default: always. */
+  readonly availableWhen?: (context: Omit<ToolContext, 'resolvePlaceholders'>) => boolean
   run(input: unknown, context: ToolContext): Promise<Result<string, string>>
 }
 
@@ -66,8 +70,13 @@ export const defineTool = <Shape extends z.ZodRawShape>(spec: ToolSpec<Shape>): 
 })
 
 /** True when every integration the tool needs is configured. */
-export const isToolAvailable = (tool: Tool, configured: readonly Integration[]): boolean =>
-  tool.requires.every((integration) => configured.includes(integration))
+export const isToolAvailable = (
+  tool: Tool,
+  configured: readonly Integration[],
+  context?: Omit<ToolContext, 'resolvePlaceholders'>,
+): boolean =>
+  tool.requires.every((integration) => configured.includes(integration)) &&
+  (tool.availableWhen === undefined || (context !== undefined && tool.availableWhen(context)))
 
 export const ticketsContext = (context: ToolContext): Result<TicketsToolContext, string> =>
   context.tickets === null

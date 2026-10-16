@@ -41,7 +41,9 @@ export const createMcpServer = (deps: McpServerDeps): McpServer => {
   }
   const clock = deps.clock ?? Date.now
 
-  for (const tool of deps.tools.filter((tool) => isToolAvailable(tool, deps.integrations))) {
+  for (const tool of deps.tools.filter((tool) =>
+    isToolAvailable(tool, deps.integrations, deps.context),
+  )) {
     server.registerTool(
       tool.name,
       {

@@ -77,6 +77,10 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
     .option('--user <user>', 'databases: user')
     .option('--group <group>', 'databases: group of databases sharing a schema')
     .option('--ssl', 'databases: connect with TLS')
+    .option(
+      '--allow-changes',
+      'databases: let the agent propose changes you approve (db_propose_change)',
+    )
     .option('--url <url>', 'repos: clone URL, ssh or https (non-interactive)')
     .option('--fix-branch <branch>', 'repos: base branch for fixes (default: the remote default)')
     .option(
