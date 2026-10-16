@@ -6,6 +6,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { AgentRequest, TicketAnalysis } from '#src/core/agent/index.ts'
+import { ChangeStore } from '#src/core/database/index.ts'
 import type { ProjectPaths } from '#src/core/project/index.ts'
 import { FakeCli, testProject } from '#tests/support/fake-cli.ts'
 import { InMemoryTicketSource } from '#tests/support/in-memory-ticket-source.ts'
@@ -187,5 +188,33 @@ describe('ticketsmith process', () => {
 
     await cli.withProject(testProject(null))
     expect((await cli.run('process', 'OPS-7'))?.message).toMatch(/project add tickets/)
+  })
+
+  it('reports the database changes the agent proposed in this run, for the human to approve', async () => {
+    cli.agent.reply(async () => {
+      // Stands in for db_propose_change, which stores proposals in local/changes.
+      await new ChangeStore(paths.changesDir).save({
+        id: 'cr-00000001',
+        database: 'shard1',
+        ticket: 'OPS-7',
+        reason: 'Close the account.',
+        sql: "UPDATE `accounts` SET `status` = 'inactive' WHERE `id` = 7",
+        kind: 'update',
+        table: 'accounts',
+        preflight: { rows: 1, sample: [], usesIndex: true },
+        rollbackSql: null,
+        status: 'proposed',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      })
+      return analysis()
+    })
+
+    expect(await cli.run('process', 'OPS-7', '--playbook', 'service-request')).toBeNull()
+
+    expect(cli.agent.requests[0]?.playbook).toMatch(/^# Playbook: resolve a service request/)
+    expect(JSON.parse(await out('OPS-7', 'run.json')).changeRequests).toEqual(['cr-00000001'])
+    expect(cli.stdout).toContain('Database changes waiting for your approval (nothing ran yet):')
+    expect(cli.stdout).toContain('ticketsmith changes approve cr-00000001')
   })
 })

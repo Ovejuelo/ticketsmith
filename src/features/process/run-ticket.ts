@@ -8,6 +8,7 @@ import {
   TicketAnalysisSchema,
 } from '../../core/agent/index.ts'
 import type { AgentToolServer, ConnectedTickets, OpenedProject } from '../../core/cli/index.ts'
+import { ChangeStore } from '../../core/database/index.ts'
 import { err, ok, type Result } from '../../core/kernel/index.ts'
 import { describeOutputError, ticketOutputDir, writeOutputFiles } from '../../core/output/index.ts'
 import { configuredIntegrations } from '../../core/project/index.ts'
@@ -41,6 +42,8 @@ export type RunRecord = {
   readonly sessionIds: readonly string[]
   readonly toolCalls: Readonly<Record<string, number>>
   readonly confidence: TicketAnalysis['confidence']
+  /** Database changes the agent proposed in this run, waiting for `ticketsmith changes approve`. */
+  readonly changeRequests: readonly string[]
   readonly files: readonly string[]
 }
 
@@ -122,6 +125,12 @@ export const processTicket = async (
       sessionIds: result.value.runs.map((run) => run.sessionId),
       toolCalls: server.toolCalls(),
       confidence: analysis.confidence,
+      changeRequests: (await new ChangeStore(paths.changesDir).list())
+        .filter(
+          (change) =>
+            change.ticket === ticket.value.key && change.createdAt >= startedAt.toISOString(),
+        )
+        .map((change) => change.id),
       files: ['ticket.md', 'ticket.json', ANALYSIS_FILE, 'jira_comment.md', 'run.json'],
     }
     const written = await writeOutputFiles(dir, {

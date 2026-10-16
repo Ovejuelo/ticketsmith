@@ -91,6 +91,16 @@ export const processCommand = ({ io, servicesFor, startAgentToolServer }: Comman
           `Analysis:      ${dir}/analysis.md`,
           `JIRA comment:  ${dir}/jira_comment.md (review it, then paste it yourself)`,
           `Run:           $${record.costUsd.toFixed(2)} · ${record.turns} turns · ${duration(record.durationMs)}`,
+          ...(record.changeRequests.length === 0
+            ? []
+            : [
+                '',
+                'Database changes waiting for your approval (nothing ran yet):',
+                ...record.changeRequests.map(
+                  (id) =>
+                    `  ticketsmith changes show ${id}   then   ticketsmith changes approve ${id}`,
+                ),
+              ]),
           '',
         ].join('\n'),
       )
