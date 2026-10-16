@@ -1,6 +1,6 @@
 {
   "name": "ticketsmith",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Turns tickets into prepared work with Claude: an MCP server and CLI with guarded, masked access to JIRA and your databases.",
   "keywords": [
     "jira",
