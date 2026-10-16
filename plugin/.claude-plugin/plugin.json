@@ -1,6 +1,6 @@
 {
   "name": "ticketsmith",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Ticketsmith MCP server (always the latest npm release) and ticket-investigation skills.",
   "author": {
     "name": "Ticketsmith contributors",
