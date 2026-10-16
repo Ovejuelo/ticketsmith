@@ -11,7 +11,7 @@
 | `storage/` | Per-project SQLite (`node:sqlite`): onboarding steps and the investigated catalog |
 | `knowledge/` | Masked Markdown writer and the project brief |
 | `tickets/` | `Ticket` model, `TicketSource` port, ADF→Markdown, JIRA Cloud (`providers/jira-cloud`) |
-| `database/` | Fail-closed read guard, `DatabaseAdapter` port, schema catalog types, `providers/mysql` |
+| `database/` | Fail-closed read and write guards, read-only preflight with rollback scripts, change requests (`ChangeStore`), `DatabaseAdapter` port (`executeChange` only takes an `ApprovedChange`), schema catalog types, `providers/mysql` |
 | `repos/` | Git without a shell (clone, fetch, and reads from git objects only), dedicated clones per repository |
 | `security/` | Masking and the session placeholder vault |
 | `audit/` | `AuditLog` port and its JSONL implementation |

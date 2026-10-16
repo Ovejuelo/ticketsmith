@@ -4,7 +4,7 @@ Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud a
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.6. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories and end-to-end ticket investigation (`ticketsmith process`) work today. Approved writes and code changes are next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.7. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`) and human-approved database changes work today. Code changes are next; see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -41,7 +41,7 @@ Step by step on a new machine: [docs/guides/getting-started.md](docs/guides/gett
 | JIRA | A scoped, read-only API token. |
 | Database reads | Exactly one `SELECT`, parsed (never regex) and checked by a two-layer guard that rejects comment tricks and inspects the whole tree. Only the SQL regenerated from the validated tree runs, in a read-only session and transaction, with a time limit and a row limit, and it is always rolled back. This holds even for a write-capable account. |
 | Sensitive data | Emails, phones, tax ids, bank accounts, cards and secrets become placeholders such as `[EMAIL_1]@northwind.mx` inside the tools. Claude can pass them back in JQL or SQL and the server substitutes the real value, so the model never sees it. |
-| Writes | None today. Later phases add JIRA comments, SQL changes and pull requests, each proposed by the agent and approved by a human in the terminal. |
+| Writes | Database changes only on databases you mark `allowChanges`: the agent **proposes** one INSERT/UPDATE (no DELETE or DDL, ever), Ticketsmith validates it, counts the rows and prepares a rollback, and **you approve it in your terminal** by typing the database name. Later phases add JIRA comments and pull requests the same way. |
 | Audit | Every MCP call is logged locally, without its content. |
 
 Details: [requirements](docs/requirements.md) §2 and [ADR 0019](docs/decisions/0019-two-layer-read-guard.md).
@@ -77,6 +77,7 @@ Global options: `--project <name>` (or `TICKETSMITH_PROJECT`), `--json`, `--verb
 | `db_schema` | databases | Tables of a database or group, or one table's columns, keys and referrers (from the investigated catalog) |
 | `db_select` | databases | One guarded `SELECT` on one database |
 | `db_select_group` | databases | The same `SELECT` on every database of a group, e.g. to find which one holds an account |
+| `db_propose_change` | databases with `allowChanges` | Propose one INSERT/UPDATE for you to approve; it never runs by itself |
 | `repo_list` | repos | Repositories, base branches, the commit each clone is at, runtime, test command and map |
 | `repo_files`, `repo_search`, `repo_read` | repos | List tracked files, search code across repositories (`git grep`), read a file with line numbers, at any branch |
 | `knowledge_read`, `knowledge_search` | — | The project brief, repository maps and analyses, database schemas and playbooks |
@@ -94,6 +95,19 @@ Create an **API token with scopes** at https://id.atlassian.com/manage-profile/s
 ### Databases
 
 `project add databases` asks for each database's host, port, database name and user, and stores the password in the keychain (`TICKETSMITH_DB_<NAME>` for scripts). Databases that share a schema form a group: the schema is investigated once, and `db_select_group` can search all of them. VPNs and tunnels are up to you; `doctor` tells you which database is unreachable.
+
+### Approved database changes
+
+Mark a database with `allowChanges: true` (or answer yes in `project add databases`) and the agent can propose one `INSERT … VALUES` or `UPDATE … WHERE` per change, typically with `ticketsmith process OPS-123 --playbook service-request`. Nothing runs until you decide:
+
+```sh
+ticketsmith changes list                 # proposals, newest first
+ticketsmith changes show cr-1a2b3c4d     # exact SQL with real values, affected rows, current values, rollback
+ticketsmith changes approve cr-1a2b3c4d  # interactive: re-checks, then you type the database name
+ticketsmith changes reject cr-1a2b3c4d --reason "not needed"
+```
+
+Approval re-runs the checks (the data may have moved), runs the statement in a transaction and commits only if MySQL affects exactly the rows you saw; otherwise it rolls back. The SQL, the rollback script and the result are saved to `out/<KEY>/change-<id>/`. Proposals expire after an hour; `changes.maxRows` (default 100) caps each change.
 
 ### Repositories
 

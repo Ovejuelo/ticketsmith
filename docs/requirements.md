@@ -203,6 +203,7 @@ v1 tools, all read-only:
 | `db_select_group` | The same guarded `SELECT` on every database of a group (e.g. find the pod holding an account) | Same as `db_select`; failures per database reported without hiding the rest |
 | `repo_list` | Repositories, base branches, clone commit, runtime, test command, map file | — |
 | `repo_files` / `repo_search` / `repo_read` | List tracked files (glob), `git grep` across repositories, read a file with line numbers, at any ref | Tracked content only (git objects); refs and paths validated; masked |
+| `db_propose_change` | Proposes one INSERT/UPDATE for human approval (only on databases with `allowChanges`) | Write guard → read-only preflight → stored change request; never executes |
 | `knowledge_read` / `knowledge_search` | Read a knowledge file (`brief.md` first) / search all of them (file:line) | `.md` inside `knowledge/` only (symlinks resolved); content already masked |
 
 Every tool call is recorded in the audit log.
@@ -262,6 +263,14 @@ Flow, designed so that the LLM can propose but never execute or approve:
 5. **Execute (Ticketsmith):** inside a transaction; if the affected rows differ from the preflight count, `ROLLBACK` and report; otherwise `COMMIT`. `rollback.sql`, the result and the approval are written to `out/<KEY>/` and the audit log.
 
 The agent has no approve tool. Nothing in the MCP server can turn a proposal into an execution.
+
+**As implemented (phase 7, ADR 0023):**
+- Opt-in per database: `allowChanges: true` in `project.yaml` (asked by `project add databases`, flag `--allow-changes`). Without it the database is read-only for the agent, and `db_propose_change` is not even registered when no database allows changes.
+- Row limit per change: `changes.maxRows` (default 100, up to 10,000).
+- Write guard (`core/database/write-guard.ts`): the read guard's text layer, one statement, one table with a primary key in the investigated catalog, an explicit column list for INSERT, no JOIN / ORDER BY / LIMIT / subqueries / variables, functions limited to NOW, CURRENT_TIMESTAMP, UTC_TIMESTAMP, CONCAT, COALESCE, IFNULL, UPPER, LOWER, TRIM and ROUND. An UPDATE's WHERE must pin rows with an AND-joined `column = literal` or `column IN (literals)`. The regenerated SQL is what runs.
+- Changes live in `local/changes/<id>.json` (owner-only, real values). `ticketsmith changes list|show|approve|reject`: approval only in an interactive terminal (no flag), re-runs the guard and the preflight, shows real values and requires the database name typed back.
+- Execution: `SET SESSION transaction_read_only = OFF`, `START TRANSACTION READ WRITE`, the statement, `COMMIT` only if `affectedRows` (matched rows) equals the preflight count, otherwise `ROLLBACK`. The session is set back to read-only before the connection returns to the pool. Output in `out/<KEY>/change-<id>/` (`change.sql`, `rollback.sql`, `preflight.json`, `result.json`); the audit records the SQL's hash, never its values.
+- INSERT rollback scripts are written after execution from the new AUTO_INCREMENT ids and contain `DELETE … WHERE pk = …`. They are files for a person; Ticketsmith never runs them, and it never runs DELETE.
 
 ### 4.11 Repositories
 
@@ -327,6 +336,7 @@ Autonomy: steps 1–3 are L1 (files only); steps 4–6 are L3 (§4.9).
 | `ticketsmith process <KEY>` / `--next` | 6 | End-to-end processing |
 | `ticketsmith mcp` | 2 | stdio MCP server |
 | `ticketsmith db ask "<sql>" [--db\|--group]` | 4 | Runs a guarded `SELECT` on a database or a whole group |
+| `ticketsmith changes list\|show\|approve\|reject <id>` | 7 | Reviews and approves (interactively) or rejects the database changes the agent proposed |
 | `ticketsmith knowledge add <KEY>` | 10 | Saves a resolved case |
 | `ticketsmith eval` | 10 | Runs the evaluations |
 

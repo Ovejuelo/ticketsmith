@@ -75,6 +75,7 @@ Personal TypeScript CLI that reads tickets (JIRA Cloud first) and drives a Claud
 - Repository reads go through git objects (`git show`/`git grep <commit>`), never the clone's files: keep it that way so ignored files and symlinks can't leak.
 - Claude Code headless (`core/agent/providers/claude-code`): there is no `--max-turns`; `--max-budget-usd` is checked between turns. On errors it still prints the result JSON on stdout with exit 1. Re-verify flags with `claude --help` after Claude Code upgrades.
 - The MCP SDK's transport classes don't satisfy `exactOptionalPropertyTypes`: cast them to `Transport` where connected (see `bootstrap/tool-session.ts`).
+- Writes: `executeChange` only accepts an `ApprovedChange`, made only in `features/changes/approve-change.ts` after the typed confirmation. A test fails if any `*.tool.ts` mentions `executeChange`/`ApprovedChange`. mysql2 reports matched rows as `affectedRows` (FOUND_ROWS), which is what the preflight counts.
 - Masking favors precision (checksums, structure); add a regression test with a real anonymized sample for every false positive or miss found.
 
 ## Workflow

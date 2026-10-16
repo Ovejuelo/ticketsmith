@@ -7,7 +7,8 @@
 | `projects/` | `project init\|status\|refresh\|add\|remove\|list\|use\|show\|link\|export\|import`, `jira discover` | — |
 | `doctor/` | `doctor` | — |
 | `tickets/` | `list`, `show` | `jira_get_issue`, `jira_search` |
-| `databases/` | `db ask` | `db_select`, `db_select_group`, `db_schema` |
+| `databases/` | `db ask` | `db_select`, `db_select_group`, `db_schema`, `db_propose_change` |
+| `changes/` | `changes list\|show\|approve\|reject` | — |
 | `repos/` | — | `repo_list`, `repo_files`, `repo_search`, `repo_read` |
 | `knowledge/` | — | `knowledge_read`, `knowledge_search` |
 | `process/` | `process <KEY>`, `process --next` | — |

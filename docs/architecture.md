@@ -14,7 +14,7 @@ flowchart LR
   end
   bootstrap --> features
   subgraph features[features/ — what Ticketsmith does]
-    projects & doctor & tickets & process & dbs[databases] & repos & know[knowledge] & mcpf[mcp]
+    projects & doctor & tickets & process & dbs[databases] & changes & repos & know[knowledge] & mcpf[mcp]
   end
   features --> core
   subgraph core[core/ — reusable building blocks]
@@ -55,6 +55,7 @@ src/
 │   ├── repos/                    MCP tools repo_list, repo_files, repo_search, repo_read
 │   ├── knowledge/                MCP tools knowledge_read, knowledge_search
 │   ├── process/                  process <KEY> | --next: the agent investigates a ticket
+│   ├── changes/                  changes list|show|approve|reject: the human decides on proposed DB changes
 │   └── mcp/                      mcp (serve), mcp setup
 └── core/                         shared building blocks (see core/README.md)
     ├── kernel/                   Result, AppError, logger
@@ -64,7 +65,7 @@ src/
     ├── storage/                  per-project SQLite (node:sqlite): onboarding steps, investigated catalog
     ├── knowledge/                masked Markdown writer, project brief
     ├── tickets/                  Ticket model, TicketSource port, ADF→Markdown, jira-cloud provider
-    ├── database/                 read guard, DatabaseAdapter port, schema catalog types, mysql provider
+    ├── database/                 read and write guards, preflight, change requests, DatabaseAdapter port, mysql provider
     ├── repos/                    git (no shell, reads from git objects), dedicated clones
     ├── security/                 masking and the session placeholder vault
     ├── audit/                    AuditLog port + JSONL implementation
