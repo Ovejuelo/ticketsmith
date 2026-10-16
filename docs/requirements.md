@@ -200,6 +200,8 @@ v1 tools, all read-only:
 | `db_schema` | Tables of a database/group, or one table's columns, keys, FKs, indexes and referrers (from the catalog) | No data; never touches the database |
 | `db_select` | One guarded `SELECT` on one database | Placeholders resolved server-side → guard → `READ ONLY` tx → time limit → `LIMIT` → `ROLLBACK` → mask |
 | `db_select_group` | The same guarded `SELECT` on every database of a group (e.g. find the pod holding an account) | Same as `db_select`; failures per database reported without hiding the rest |
+| `repo_list` | Repositories, base branches, clone commit, runtime, test command, map file | — |
+| `repo_files` / `repo_search` / `repo_read` | List tracked files (glob), `git grep` across repositories, read a file with line numbers, at any ref | Tracked content only (git objects); refs and paths validated; masked |
 | `knowledge_search` | Searches playbooks, notes and cases | — |
 
 Every tool call is recorded in the audit log.
@@ -261,9 +263,10 @@ The agent has no approve tool. Nothing in the MCP server can turn a proposal int
 ### 4.11 Repositories
 
 - A project has **any number of git repositories, on any host**. Per repo: clone URL, protected branches, the base branch for each kind of change (fix, feature), the runtime version and the test command.
-- **Dedicated clones** under `<project>/local/repos/`, updated with `git fetch`. The user's own working copies are never used.
+- **Dedicated clones** under `<project>/local/repos/`, updated with `git fetch` and kept detached at the fix branch (the code users run). The user's own working copies are never used. Git access uses the user's own SSH key or credential helper; URLs with embedded credentials are rejected. A missing clone (e.g. after `project link` on another machine) is cloned by `project refresh repos`.
 - **Runtime per repo** through the version manager (e.g. `fnm` for Node): commands for a repo always run with that repo's version.
-- **Project map:** the repositories onboarding step has the agent study each repo (structure, entry points, routes, models and DB access, config, scripts and tests) and writes `knowledge/repos/<name>.md`, refreshed when the repo's HEAD moves. The agent reads the map before investigating, instead of rediscovering the project every time.
+- **Project map:** the repositories onboarding step writes `knowledge/repos/<name>.md` (stack, structure, entry points, HTTP endpoints, screens, outgoing calls, models, migrations and SQL, config files, tests), regenerated only when the clone's commit moves, plus `knowledge/repos/_connections.md` matching front-end calls to back-end routes. The map is **deterministic** (built from the code without an LLM, phase 5); phase 6 adds a deeper analysis by the agent on top. The agent reads the map before investigating, instead of rediscovering the project every time.
+- **Reading code (MCP):** `repo_list`, `repo_files`, `repo_search` and `repo_read` read **git objects**, not the file system: only tracked content at a validated ref is visible (never ignored files such as `.env`, never `.git/`, and symlinks yield their target path), and outputs are masked like every tool.
 - **Code changes (L3):** one worktree and branch per ticket, created from the repo's base branch for that kind of change and named by a configurable pattern. The agent may edit and run the repo's tests. Before pushing it **asks** whether to push and open a PR; PRs go through the host's API (Bitbucket first; credential in the keychain).
 
 > **Example:** two Bitbucket repos, `billing-backend` (Node 20, Express) and `billing-frontend` (React 16, Node 14); long-lived branches `master` (production), `stage`, `develop`; fixes are hotfixes branched from `master` (`hotfix/<KEY>-<slug>`).

@@ -4,7 +4,7 @@ Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud a
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.4. Tickets (JIRA Cloud) and database reads (MySQL 8) work today. Repositories, an end-to-end agent and approved writes are next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.5. Tickets (JIRA Cloud), database reads (MySQL 8) and code reading across your repositories work today. An end-to-end agent and approved writes are next; see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -48,13 +48,13 @@ Details: [requirements](docs/requirements.md) §2 and [ADR 0019](docs/decisions/
 
 ## Usage
 
-Everything happens inside a **project**, one per product you support (e.g. `billing`). A project holds its integrations, its masking rules and its investigated knowledge. Every integration is optional: a ticket source, any number of databases (grouped when they share a schema) and, soon, repositories.
+Everything happens inside a **project**, one per product you support (e.g. `billing`). A project holds its integrations, its masking rules and its investigated knowledge. Every integration is optional: a ticket source, any number of databases (grouped when they share a schema) and any number of git repositories.
 
 ```sh
 ticketsmith project init              # guided, resumable onboarding: configure, verify and investigate
 ticketsmith project status            # what is configured, investigated or pending
 ticketsmith project refresh           # investigate again and rebuild knowledge/brief.md
-ticketsmith project add|remove tickets|databases
+ticketsmith project add|remove tickets|databases|repos
 ticketsmith doctor                    # check every configured integration
 ticketsmith jira discover             # pick the JIRA project/board and save the JQL
 ticketsmith list --limit 20           # prioritized open tickets
@@ -74,6 +74,8 @@ Global options: `--project <name>` (or `TICKETSMITH_PROJECT`), `--json`, `--verb
 | `db_schema` | databases | Tables of a database or group, or one table's columns, keys and referrers (from the investigated catalog) |
 | `db_select` | databases | One guarded `SELECT` on one database |
 | `db_select_group` | databases | The same `SELECT` on every database of a group, e.g. to find which one holds an account |
+| `repo_list` | repos | Repositories, base branches, the commit each clone is at, runtime, test command and map |
+| `repo_files`, `repo_search`, `repo_read` | repos | List tracked files, search code across repositories (`git grep`), read a file with line numbers, at any branch |
 
 Tools only appear when the project has the integration they need. Without the plugin, `ticketsmith mcp setup` prints the `claude mcp add` command to register the server yourself.
 
@@ -84,6 +86,10 @@ Create an **API token with scopes** at https://id.atlassian.com/manage-profile/s
 ### Databases
 
 `project add databases` asks for each database's host, port, database name and user, and stores the password in the keychain (`TICKETSMITH_DB_<NAME>` for scripts). Databases that share a schema form a group: the schema is investigated once, and `db_select_group` can search all of them. VPNs and tunnels are up to you; `doctor` tells you which database is unreachable.
+
+### Repositories
+
+`project add repos` asks for the clone URL (ssh or https), the base branches for fixes and features and the protected branches, clones the repository into the project's `local/repos/` and detects its Node version and test command. Git access is your own: an SSH key or a credential helper; Ticketsmith never stores git credentials. Each repository gets a map in `knowledge/repos/<name>.md` (endpoints, screens, models, tests…) and `project refresh repos` fetches and re-maps what moved. The MCP tools read only tracked code, never ignored files like `.env`.
 
 ### Sharing a project with the team
 

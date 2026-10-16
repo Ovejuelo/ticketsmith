@@ -29,6 +29,7 @@ The wizard is resumable: stop at any point and run it again. For each integratio
 
 - **Ticket source (JIRA Cloud):** your site (`https://<site>.atlassian.net`), your email and a scoped, read-only API token (see the README, "JIRA token"). Then pick the JIRA project or board.
 - **Databases:** add one entry per database (name, host, port, database, user; the password goes to the keychain). Put the databases that share a schema in one group, e.g. `shard1` … `shard7` in a group `shards`.
+- **Repositories:** the clone URL of each repository (ssh or https), its base branches for fixes and features and its protected branches. Git uses your own access: check it first with `git ls-remote <url>` (SSH key loaded with `ssh-add`, or a credential helper for https).
 
 If the project already exists in a team repository, link it instead and add only your credentials:
 
@@ -36,6 +37,7 @@ If the project already exists in a team repository, link it instead and add only
 git clone <project repo url> ~/work/ticketsmith-<project>
 ticketsmith project link ~/work/ticketsmith-<project>
 ticketsmith project add tickets          # and/or: project add databases
+ticketsmith project refresh repos        # clones the project's repositories on this machine
 ```
 
 ## 4. Check it

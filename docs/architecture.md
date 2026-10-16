@@ -14,11 +14,11 @@ flowchart LR
   end
   bootstrap --> features
   subgraph features[features/ — what Ticketsmith does]
-    projects & doctor & tickets & dbs[databases] & mcpf[mcp]
+    projects & doctor & tickets & dbs[databases] & repos & mcpf[mcp]
   end
   features --> core
   subgraph core[core/ — reusable building blocks]
-    project & secrets & tix[tickets] & dbk[database] & security & storage & knowledge & audit & output & clik[cli] & mcpk[mcp] & services & feature
+    project & secrets & tix[tickets] & dbk[database] & repok[repos] & security & storage & knowledge & audit & output & clik[cli] & mcpk[mcp] & services & feature
   end
   core --> kernel[core/kernel — Result, errors, logger]
 ```
@@ -51,6 +51,7 @@ src/
 │   ├── doctor/                   doctor
 │   ├── tickets/                  list, show + MCP tools jira_get_issue, jira_search
 │   ├── databases/                db ask + MCP tools db_select, db_select_group, db_schema
+│   ├── repos/                    MCP tools repo_list, repo_files, repo_search, repo_read
 │   └── mcp/                      mcp (serve), mcp setup
 └── core/                         shared building blocks (see core/README.md)
     ├── kernel/                   Result, AppError, logger
@@ -60,6 +61,7 @@ src/
     ├── knowledge/                masked Markdown writer, project brief
     ├── tickets/                  Ticket model, TicketSource port, ADF→Markdown, jira-cloud provider
     ├── database/                 read guard, DatabaseAdapter port, schema catalog types, mysql provider
+    ├── repos/                    git (no shell, reads from git objects), dedicated clones
     ├── security/                 masking and the session placeholder vault
     ├── audit/                    AuditLog port + JSONL implementation
     ├── output/                   per-ticket output files
