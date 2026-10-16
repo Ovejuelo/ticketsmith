@@ -54,4 +54,18 @@ describe('PlaceholderVault', () => {
       value: 'project = OPS AND text ~ "[attachment: a.png]"',
     })
   })
+
+  it('reveals real values for local files, except secrets and placeholders it never issued', () => {
+    const vault = new PlaceholderVault()
+    const masked = vault.mask(
+      'ana@contoso.mx, tel +52 55 1234 5678, token=ghp_abcdefghijklmnopqrstuvwxyz0123456789',
+      options,
+    ).text
+    expect(masked).toBe('[EMAIL_1]@contoso.mx, tel [PHONE_1], token=[SECRET_1]')
+
+    const answer = `Contact [EMAIL_1]@contoso.mx or [EMAIL_1] at [PHONE_1]; key [SECRET_1]; also [EMAIL_9].`
+    expect(vault.reveal(answer)).toBe(
+      'Contact ana@contoso.mx or ana@contoso.mx at +52 55 1234 5678; key [SECRET_1]; also [EMAIL_9].',
+    )
+  })
 })

@@ -61,6 +61,17 @@ export class PlaceholderVault implements PlaceholderRegistry {
     return { text: detected.text, counts }
   }
 
+  /**
+   * For local files only (never for anything sent to an LLM): puts the real values back, except
+   * secrets, which stay masked everywhere. Placeholders this vault never issued are left as they are.
+   */
+  reveal(text: string): string {
+    return text.replace(PLACEHOLDER_REFERENCE, (match, id: string) => {
+      if (id.startsWith('SECRET_')) return match
+      return this.#originals.get(`[${id}]`) ?? match
+    })
+  }
+
   /** Replaces placeholders with real values; fails listing any placeholder this vault never issued. */
   resolve(text: string): Result<string, readonly string[]> {
     const unknown = new Set<string>()
