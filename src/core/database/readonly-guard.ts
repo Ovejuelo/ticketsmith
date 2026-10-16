@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import { err, ok, type Result } from '../kernel/index.ts'
+import { scanText } from './sql-text-scan.ts'
 
 // node-sql-parser is CommonJS without named ESM exports; its types do declare `Parser`.
 const { Parser } = createRequire(import.meta.url)(
@@ -109,71 +110,6 @@ export const guardReadQuery = (
   const executable =
     existingLimit === null ? `${regenerated} LIMIT ${options.maxRows + 1}` : regenerated
   return ok({ sql: executable, maxRows: options.maxRows } as GuardedQuery)
-}
-
-// --- text layer ----------------------------------------------------------------------------
-
-/** Finds comment constructs that MySQL and the parser read differently; skips string literals. */
-const scanText = (sql: string): string | null => {
-  let i = 0
-  while (i < sql.length) {
-    const char = sql[i]
-    if (char === "'" || char === '"' || char === '`') {
-      i = skipQuoted(sql, i, char)
-      continue
-    }
-    if (char === '/' && sql[i + 1] === '*') {
-      const marker = sql.slice(i + 2, i + 4)
-      if (marker.startsWith('!') || marker === 'M!') {
-        return 'MySQL executable comments (/*! … */) are not allowed: they run code the guard cannot see.'
-      }
-      if (marker.startsWith('+')) {
-        return 'Optimizer hints (/*+ … */) are not allowed: they can override the query time limit.'
-      }
-      const end = sql.indexOf('*/', i + 2)
-      i = end === -1 ? sql.length : end + 2
-      continue
-    }
-    if (char === '-' && sql[i + 1] === '-') {
-      const next = sql[i + 2]
-      if (next !== undefined && !/\s/.test(next)) {
-        return 'In MySQL "--" only starts a comment when followed by a space; write "- -" for arithmetic or "-- " for a comment.'
-      }
-      i = endOfLine(sql, i)
-      continue
-    }
-    if (char === '#') {
-      i = endOfLine(sql, i)
-      continue
-    }
-    i++
-  }
-  return null
-}
-
-const skipQuoted = (sql: string, start: number, quote: string): number => {
-  let i = start + 1
-  while (i < sql.length) {
-    const char = sql[i]
-    if (quote !== '`' && char === '\\') {
-      i += 2
-      continue
-    }
-    if (char === quote) {
-      if (sql[i + 1] === quote) {
-        i += 2
-        continue
-      }
-      return i + 1
-    }
-    i++
-  }
-  return sql.length // unterminated: the parser will reject it
-}
-
-const endOfLine = (sql: string, from: number): number => {
-  const newline = sql.indexOf('\n', from)
-  return newline === -1 ? sql.length : newline + 1
 }
 
 // --- tree layer ----------------------------------------------------------------------------
