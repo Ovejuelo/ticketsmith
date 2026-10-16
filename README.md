@@ -4,7 +4,7 @@ Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud a
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.8. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes and code fixes with tests and pull requests (`ticketsmith code`) work today. New functionality with a design checkpoint is next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.9. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes, code fixes with tests and pull requests (`ticketsmith code`) and new functionality with a design checkpoint (`ticketsmith feature`) work today. Classification, cases and evals are next; see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -108,6 +108,21 @@ ticketsmith code discard OPS-123  # removes the worktrees and local branches
 ```
 
 The agent edits only inside the ticket's worktrees and has no shell: it runs your configured `testCommand` through Ticketsmith, which runs the tests again itself before showing you the diff. Branches follow `branchPattern` (default `fix/{key}-{slug}`, e.g. `hotfix/{key}-{slug}`). Pull requests open through GitHub (or GitHub Enterprise with `host.apiUrl`) and Bitbucket Cloud with an API token stored in the keychain on first use; for any other host you get the link and the description to paste.
+
+### New functionality
+
+New functionality gets a design checkpoint before any code is written:
+
+```sh
+ticketsmith feature OPS-123              # understand + spec + plan; questions go to out/OPS-123/feature/questions.md
+ticketsmith feature OPS-123              # after you answer them under "Answer:", it redesigns with the answers
+ticketsmith feature approve OPS-123      # interactive: only an approved plan can be built
+ticketsmith feature reject OPS-123 --feedback "also 20+ units: 10% off"
+ticketsmith feature implement OPS-123    # worktrees from the feature branch, tests, criteria met or not
+ticketsmith feature push OPS-123         # asks per repository; PRs name the ticket and link each other
+```
+
+Schema changes come as migration files in the repository for review; Ticketsmith never runs DDL against your databases.
 
 ### Approved database changes
 

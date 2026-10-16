@@ -56,7 +56,7 @@ src/
 │   ├── knowledge/                MCP tools knowledge_read, knowledge_search
 │   ├── process/                  process <KEY> | --next: the agent investigates a ticket
 │   ├── changes/                  changes list|show|approve|reject: the human decides on proposed DB changes
-│   ├── code/                     code <KEY>|push|status|discard + MCP tools code_run_tests, code_diff
+│   ├── code/                     code <KEY>|push|status|discard, feature <KEY>|approve|reject|implement|push|status + MCP code_run_tests, code_diff
 │   └── mcp/                      mcp (serve), mcp setup
 └── core/                         shared building blocks (see core/README.md)
     ├── kernel/                   Result, AppError, logger

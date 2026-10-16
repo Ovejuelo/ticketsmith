@@ -28,6 +28,7 @@ You work through the `ticketsmith` MCP tools. They already mask sensitive values
    - The clones follow each repository's fix branch (production code). Pass `ref` (e.g. `develop`) to compare another branch.
    - Cite `repo/file:line` for every claim about the code.
    - You do not edit code from here. If the fix is in code, say so and suggest `ticketsmith code <KEY>`: it works in a worktree per ticket, runs the tests and asks the user before pushing.
+   - If the ticket asks for new functionality rather than a fix, suggest `ticketsmith feature <KEY>`: it asks the open questions, writes a spec and a plan for the user to approve, and only then builds it.
 5. **Report** in the user's language:
    - **Summary:** what the ticket asks and what you found, in two or three sentences.
    - **Evidence:** the queries you ran (with what they returned) and the code you read (`repo/file:line`).

@@ -9,7 +9,7 @@
 | `tickets/` | `list`, `show` | `jira_get_issue`, `jira_search` |
 | `databases/` | `db ask` | `db_select`, `db_select_group`, `db_schema`, `db_propose_change` |
 | `changes/` | `changes list\|show\|approve\|reject` | — |
-| `code/` | `code <KEY>`, `code push\|status\|discard` | `code_run_tests`, `code_diff` (code sessions only) |
+| `code/` | `code <KEY>`, `code push\|status\|discard`, `feature <KEY>`, `feature approve\|reject\|implement\|push\|status` | `code_run_tests`, `code_diff` (code sessions only) |
 | `repos/` | — | `repo_list`, `repo_files`, `repo_search`, `repo_read` |
 | `knowledge/` | — | `knowledge_read`, `knowledge_search` |
 | `process/` | `process <KEY>`, `process --next` | — |

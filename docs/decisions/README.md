@@ -30,3 +30,4 @@ Template: `# NNNN. Title` · **Status** · **Context** (why it came up) · **Dec
 | [0022](0022-agent-runtime-mcp-only.md) | Agent runs: Claude Code headless with only Ticketsmith's tools, served in-process |
 | [0023](0023-approved-database-changes.md) | Approved database changes: write guard, preflight and terminal approval |
 | [0024](0024-code-changes-in-worktrees.md) | Code changes in ticket worktrees: confined file tools, no shell, pushes on approval |
+| [0025](0025-new-functionality-design-checkpoint.md) | New functionality: questions, one design run and plan approval before any code |

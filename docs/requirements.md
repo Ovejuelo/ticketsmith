@@ -315,6 +315,8 @@ New functionality is larger and more ambiguous than a hotfix, so it adds a **des
 
 Autonomy: steps 1–3 are L1 (files only); steps 4–6 are L3 (§4.9).
 
+**As implemented (phase 9, ADR 0025):** `ticketsmith feature <KEY>` runs the design (read-only tools only) and writes `out/<KEY>/feature/spec.md` and `plan.md`. When it has blocking questions it writes `questions.md`, where the person answers under each "Answer:" (or forwards them to the requester), and the next `feature <KEY>` continues with the answers. `feature approve <KEY>` (interactive only) or `feature reject <KEY> --feedback "…"` (redesign with it). `feature implement <KEY>` needs the approved plan: one worktree per repository with `allowCodeChanges`, from `branches.feature`, on `featureBranchPattern` (default `feature/{key}-{slug}`, the same in every repository). Ticketsmith re-runs the tests and writes a summary with the acceptance criteria met or not and the new migration files found in the diff. `feature push <KEY>` asks per repository and opens pull requests that name the ticket and link the sibling pull requests. The state (`state.json`) keeps real values locally; everything sent back to the agent (answers, feedback, the previous design, the approved plan) is masked first with that run's vault.
+
 ### 4.16 Distribution
 - Public repository (MIT) and npm package `ticketsmith` containing only the bundle; company data never enters either (guarded by `scripts/guard-private-terms.ts`).
 - A Claude Code plugin and marketplace in the same repository: the plugin runs `npx -y ticketsmith@latest mcp` and ships skills, so users get new releases without reinstalling.
@@ -337,6 +339,7 @@ Autonomy: steps 1–3 are L1 (files only); steps 4–6 are L3 (§4.9).
 | `ticketsmith mcp` | 2 | stdio MCP server |
 | `ticketsmith db ask "<sql>" [--db\|--group]` | 4 | Runs a guarded `SELECT` on a database or a whole group |
 | `ticketsmith changes list\|show\|approve\|reject <id>` | 7 | Reviews and approves (interactively) or rejects the database changes the agent proposed |
+| `ticketsmith feature <KEY>` / `feature approve\|reject\|implement\|push\|status` | 9 | New functionality: questions, spec and plan you approve, then code and linked PRs |
 | `ticketsmith code <KEY>` / `code push\|status\|discard` | 8 | Fixes a ticket in code in a worktree per repository, then pushes and opens PRs when you agree |
 | `ticketsmith knowledge add <KEY>` | 10 | Saves a resolved case |
 | `ticketsmith eval` | 10 | Runs the evaluations |
