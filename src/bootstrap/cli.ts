@@ -44,6 +44,7 @@ export const buildProgram = (version: string, context: CliContext): Command => {
         version,
         auditCommand: options.auditCommand,
         only: options.only,
+        code: options.code,
       }),
     )
   }

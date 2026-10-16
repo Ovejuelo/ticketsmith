@@ -26,6 +26,17 @@ export type ReposToolContext = {
   readonly knowledgeDir: string
 }
 
+/** A code-change session's worktrees (`ticketsmith code`); absent in every other session. */
+export type CodeToolContext = {
+  readonly worktrees: readonly {
+    readonly repo: string
+    readonly dir: string
+    readonly testCommand: string | undefined
+    readonly node: string | undefined
+  }[]
+  readonly testTimeoutMs: number
+}
+
 /** What every MCP tool can use; built per session by bootstrap/mcp-server.ts. */
 export type ToolContext = {
   /** Null when the project has no ticket source (tools requiring it are not registered then). */
@@ -36,6 +47,8 @@ export type ToolContext = {
   readonly repos: ReposToolContext | null
   /** The project's knowledge folder (always there; its files are masked when written). */
   readonly knowledge: { readonly dir: string }
+  /** Only in code-change sessions. */
+  readonly code?: CodeToolContext | null
   /** Turns session placeholders ([EMAIL_1]) back into real values; fails on unknown ones. */
   resolvePlaceholders(text: string): Result<string, readonly string[]>
 }

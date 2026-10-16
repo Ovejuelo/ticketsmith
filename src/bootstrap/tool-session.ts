@@ -12,7 +12,7 @@ import {
   requireTickets,
 } from '../core/cli/index.ts'
 import { DATABASE_CATALOG, TableInfoSchema } from '../core/database/index.ts'
-import type { ToolContext } from '../core/mcp/index.ts'
+import type { CodeToolContext, ToolContext } from '../core/mcp/index.ts'
 import { configuredIntegrations } from '../core/project/index.ts'
 import { projectRepositories } from '../core/repos/index.ts'
 import { PlaceholderVault } from '../core/security/index.ts'
@@ -26,6 +26,7 @@ export type ToolSessionOptions = {
   readonly version: string
   readonly auditCommand: string
   readonly only?: ((toolName: string) => boolean) | undefined
+  readonly code?: CodeToolContext | undefined
 }
 
 /** One MCP server over the project's tools, with its vault, audit and lazily opened databases. */
@@ -85,6 +86,7 @@ export const openToolSession = async (
         ? null
         : { repositories: projectRepositories(project, paths), knowledgeDir: paths.knowledgeDir },
     knowledge: { dir: paths.knowledgeDir },
+    code: options.code ?? null,
   }
 
   const calls: Record<string, number> = {}

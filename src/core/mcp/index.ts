@@ -1,4 +1,5 @@
 export {
+  type CodeToolContext,
   type DatabasesToolContext,
   databasesContext,
   defineTool,

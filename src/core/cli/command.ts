@@ -2,6 +2,7 @@ import type { Command } from 'commander'
 import type { McpConfig } from '../agent/index.ts'
 import type { AuditLog } from '../audit/index.ts'
 import type { Result } from '../kernel/index.ts'
+import type { CodeToolContext } from '../mcp/index.ts'
 import type { Services } from '../services/index.ts'
 import { fail, type Io } from './io.ts'
 
@@ -38,6 +39,8 @@ export type AgentToolServerOptions = {
   readonly auditCommand: string
   /** Only these tools (default: every tool the project's integrations allow). */
   readonly only?: (toolName: string) => boolean
+  /** Code-change sessions: the ticket's worktrees (enables code_run_tests and code_diff). */
+  readonly code?: CodeToolContext
 }
 
 /** The project's tools served to one agent session; the placeholder vault lives here, in memory. */

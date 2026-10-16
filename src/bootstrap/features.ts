@@ -1,5 +1,6 @@
 import type { Feature } from '../core/feature/index.ts'
 import { changesFeature } from '../features/changes/index.ts'
+import { codeFeature } from '../features/code/index.ts'
 import { databasesFeature } from '../features/databases/index.ts'
 import { doctorFeature } from '../features/doctor/index.ts'
 import { knowledgeFeature } from '../features/knowledge/index.ts'
@@ -15,6 +16,7 @@ export const FEATURES: readonly Feature[] = [
   doctorFeature,
   ticketsFeature,
   processFeature,
+  codeFeature,
   databasesFeature,
   changesFeature,
   reposFeature,
