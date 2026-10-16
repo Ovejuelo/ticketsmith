@@ -1,3 +1,4 @@
+import { describeAgentError } from '../../core/agent/index.ts'
 import { describeDatabaseError } from '../../core/database/index.ts'
 import {
   configuredIntegrations,
@@ -63,6 +64,9 @@ export const runChecks = async (
     add('databases', 'skip', 'Not configured (`ticketsmith project add databases`)')
   } else {
     await checkDatabases(services, project.value, add)
+  }
+  if (tickets !== undefined || project.value.integrations.repos !== undefined) {
+    await checkAgent(services, add)
   }
   if (project.value.integrations.repos === undefined) {
     add('repos', 'skip', 'Not configured (`ticketsmith project add repos`)')
@@ -212,5 +216,25 @@ const checkRepos = async (repositories: readonly Repository[], add: AddCheck): P
       const runtime = checkNodeRuntime(config.runtime.node, installed)
       add(`${name} runtime`, runtime.status, runtime.detail)
     }
+  }
+}
+
+/** Claude Code runs `process` and deep repository analyses. */
+const checkAgent = async (services: Services, add: AddCheck): Promise<void> => {
+  const status = await services.agent.check()
+  if (!status.ok) {
+    add('agent', 'fail', describeAgentError(status.error))
+  } else if (!status.value.loggedIn) {
+    add(
+      'agent',
+      'fail',
+      `Claude Code ${status.value.version} is not signed in: run \`claude\` and log in`,
+    )
+  } else {
+    add(
+      'agent',
+      'ok',
+      `Claude Code ${status.value.version}, signed in${status.value.authMethod === undefined ? '' : ` (${status.value.authMethod})`}`,
+    )
   }
 }

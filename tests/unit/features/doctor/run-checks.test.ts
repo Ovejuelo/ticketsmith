@@ -39,9 +39,29 @@ describe('doctor', () => {
       jql: 'ok',
       board: 'ok',
       databases: 'skip',
+      agent: 'ok',
       repos: 'skip',
     })
     expect(await cli.run('doctor')).toBeNull()
+  })
+
+  it('checks the agent that runs `process`: installed and signed in', async () => {
+    await cli.withProject(testProject({ jql: 'project = OPS' }))
+    cli.agent.status = ok({ version: '2.1.301', loggedIn: false, authMethod: undefined })
+    const checks = await runChecks(cli.services, undefined)
+    expect(checks.find((check) => check.name === 'agent')).toEqual({
+      name: 'agent',
+      status: 'fail',
+      detail: 'Claude Code 2.1.301 is not signed in: run `claude` and log in',
+    })
+
+    cli.agent.status = err({ kind: 'not-installed' })
+    expect(
+      (await runChecks(cli.services, undefined)).find((check) => check.name === 'agent'),
+    ).toMatchObject({
+      status: 'fail',
+      detail: expect.stringContaining('npm i -g @anthropic-ai/claude-code'),
+    })
   })
 
   it('warns about classic tokens, missing JQL and board scopes', async () => {
