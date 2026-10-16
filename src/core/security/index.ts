@@ -8,3 +8,4 @@ export {
   type PlaceholderRegistry,
 } from './mask-sensitive-data.ts'
 export { PlaceholderVault } from './placeholder-vault.ts'
+export { revealDeep } from './reveal-deep.ts'

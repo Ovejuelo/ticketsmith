@@ -12,13 +12,14 @@ import { ChangeStore } from '../../core/database/index.ts'
 import { err, ok, type Result } from '../../core/kernel/index.ts'
 import { describeOutputError, ticketOutputDir, writeOutputFiles } from '../../core/output/index.ts'
 import { configuredIntegrations } from '../../core/project/index.ts'
+import { revealDeep } from '../../core/security/index.ts'
 import type { Services } from '../../core/services/index.ts'
 import {
   describeTicketSourceError,
   renderTicketMarkdown,
   type TicketKey,
 } from '../../core/tickets/index.ts'
-import { renderAnalysis, revealDeep } from './render-analysis.ts'
+import { renderAnalysis } from './render-analysis.ts'
 
 export const ANALYSIS_FILE = 'analysis.md'
 

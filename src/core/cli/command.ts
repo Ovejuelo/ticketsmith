@@ -48,6 +48,8 @@ export type AgentToolServer = {
   readonly mcpConfig: McpConfig
   /** Real values back into the agent's answer, for local files only; secrets stay masked. */
   reveal(text: string): string
+  /** Masks text with this session's vault before it goes into a prompt (same placeholders the tools use). */
+  mask(text: string): string
   /** How many times each tool was called. */
   toolCalls(): Readonly<Record<string, number>>
   /** Adds an entry (e.g. the agent run itself) to this run's audit file. */

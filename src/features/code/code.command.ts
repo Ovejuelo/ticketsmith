@@ -58,8 +58,16 @@ const pushCommand = ({ io, servicesFor }: CommandDeps): Command =>
       if (!io.interactive) fail('Pushing needs an interactive terminal: run it yourself.')
       const services = servicesFor(command)
       const opened = await openProject(services, globalOptions(command).project)
+      const key = parseKey(raw)
       orFail(
-        await pushAndOpen(services, opened, parseKey(raw), options.repo, terminalPushIo(io)),
+        await pushAndOpen(
+          services,
+          opened,
+          codeOutputDir(opened.paths.outDir, key),
+          key,
+          options.repo,
+          terminalPushIo(io),
+        ),
         String,
       )
     })
@@ -72,7 +80,7 @@ const statusCommand = ({ io, servicesFor }: CommandDeps): Command =>
       const keys = await readdir(paths.outDir).catch(() => [] as string[])
       let any = false
       for (const key of keys.sort()) {
-        const run = await loadCodeRun(paths.outDir, key)
+        const run = await loadCodeRun(codeOutputDir(paths.outDir, key), key)
         if (!run.ok) continue
         any = true
         for (const repo of run.value.repos) {
@@ -102,7 +110,7 @@ const discardCommand = ({ io, servicesFor }: CommandDeps): Command =>
         servicesFor(command),
         globalOptions(command).project,
       )
-      const run = orFail(await loadCodeRun(paths.outDir, key), String)
+      const run = orFail(await loadCodeRun(codeOutputDir(paths.outDir, key), key), String)
       if (!options.yes) {
         if (!io.interactive) fail('Pass --yes to discard without a terminal.')
         if (!(await askConfirm(`Remove the worktrees and local branches of ${key}?`, false)))
@@ -120,11 +128,13 @@ const discardCommand = ({ io, servicesFor }: CommandDeps): Command =>
           String,
         )
       }
-      orFail(await saveCodeRun(paths.outDir, { ...run, repos: [] }), String)
+      orFail(await saveCodeRun(codeOutputDir(paths.outDir, key), { ...run, repos: [] }), String)
       io.out(
         `Discarded the worktrees of ${key}. The diffs and summary stay in ${codeOutputDir(paths.outDir, key)}.\n`,
       )
     })
+
+export { terminalPushIo }
 
 export const codeCommand = (deps: CommandDeps): Command => {
   const { io, servicesFor, startAgentToolServer } = deps
@@ -195,7 +205,17 @@ export const codeCommand = (deps: CommandDeps): Command => {
         )
         return
       }
-      orFail(await pushAndOpen(services, opened, key, undefined, terminalPushIo(io)), String)
+      orFail(
+        await pushAndOpen(
+          services,
+          opened,
+          codeOutputDir(opened.paths.outDir, key),
+          key,
+          undefined,
+          terminalPushIo(io),
+        ),
+        String,
+      )
     })
     .addCommand(pushCommand(deps))
     .addCommand(statusCommand(deps))

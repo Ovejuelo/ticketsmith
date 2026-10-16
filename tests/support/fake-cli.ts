@@ -68,6 +68,7 @@ export const testRepository = (
   runtime: {},
   allowCodeChanges: false,
   branchPattern: 'fix/{key}-{slug}',
+  featureBranchPattern: 'feature/{key}-{slug}',
   ...overrides,
 })
 

@@ -29,21 +29,21 @@ export type PushIo = {
 export const pushAndOpen = async (
   services: Services,
   opened: OpenedProject,
+  runDir: string,
   key: string,
   only: readonly string[] | undefined,
   io: PushIo,
 ): Promise<Result<readonly RepoOutcome[], string>> => {
-  const loaded = await loadCodeRun(opened.paths.outDir, key)
+  const loaded = await loadCodeRun(runDir, key)
   if (!loaded.ok) return loaded
   const run = loaded.value
-  const updated: RepoOutcome[] = []
-  for (const outcome of run.repos) {
+  const repos = [...run.repos]
+  for (const [index, outcome] of repos.entries()) {
     if (
       (only !== undefined && !only.includes(outcome.repo)) ||
       outcome.commit === null ||
       outcome.pullRequest !== null
     ) {
-      updated.push(outcome)
       continue
     }
     const config = opened.project.integrations.repos?.find((repo) => repo.name === outcome.repo)
@@ -58,30 +58,47 @@ export const pushAndOpen = async (
     const agreed = await io.confirm(
       `Push ${outcome.branch} of ${outcome.repo} to origin and open a pull request into ${outcome.target}?${warning}`,
     )
-    if (!agreed) {
-      updated.push(outcome)
-      continue
-    }
+    if (!agreed) continue
     if (!outcome.pushed) {
       const pushed = await pushBranch(outcome.dir, outcome.branch)
       if (!pushed.ok) return err(`${outcome.repo}: push failed: ${pushed.error}`)
     }
-    const pullRequest = await openPullRequest(
-      services,
-      opened,
-      config,
-      outcome,
-      run.pullRequest,
-      io,
-    )
-    updated.push({ ...outcome, pushed: true, pullRequest })
-    await saveCodeRun(opened.paths.outDir, {
-      ...run,
-      repos: [...updated, ...run.repos.slice(updated.length)],
-    })
+    const text = {
+      title: run.pullRequest.title,
+      body: withRelated(run.ticket, run.pullRequest.body, outcome, repos),
+    }
+    const pullRequest = await openPullRequest(services, opened, config, outcome, text, io)
+    repos[index] = { ...outcome, pushed: true, pullRequest }
+    // Saved after every repository, so a failure later keeps what already happened.
+    const saved = await saveCodeRun(runDir, { ...run, repos })
+    if (!saved.ok) return saved
   }
-  const saved = await saveCodeRun(opened.paths.outDir, { ...run, repos: updated })
-  return saved.ok ? ok(updated) : saved
+  return ok(repos)
+}
+
+/** The ticket and the sibling changes (other repositories of the same run), linked when known. */
+export const withRelated = (
+  ticket: string,
+  body: string,
+  outcome: RepoOutcome,
+  repos: readonly RepoOutcome[],
+): string => {
+  const siblings = repos.filter((repo) => repo.repo !== outcome.repo && repo.commit !== null)
+  return [
+    body.trim(),
+    '',
+    '---',
+    `Ticket: ${ticket}`,
+    ...(siblings.length === 0
+      ? []
+      : [
+          'Related changes:',
+          ...siblings.map(
+            (repo) => `- ${repo.repo}: ${repo.pullRequest ?? `branch \`${repo.branch}\``}`,
+          ),
+        ]),
+    '',
+  ].join('\n')
 }
 
 const openPullRequest = async (

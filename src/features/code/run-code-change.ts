@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { z } from 'zod'
 import {
   type CodeChange,
   CodeChangeSchema,
@@ -13,10 +14,12 @@ import type { CodeToolContext } from '../../core/mcp/index.ts'
 import { describeOutputError, ticketOutputDir, writeOutputFiles } from '../../core/output/index.ts'
 import {
   branchDiff,
+  changeBranches,
   commitAll,
   prepareWorktree,
   projectRepositories,
   type Worktree,
+  type WorktreeKind,
 } from '../../core/repos/index.ts'
 import type { Services } from '../../core/services/index.ts'
 import { describeTicketSourceError, type TicketKey } from '../../core/tickets/index.ts'
@@ -30,45 +33,47 @@ export type CodeOptions = {
   readonly budgetUsd?: number | undefined
 }
 
-export type CodeOutcome = {
-  readonly change: CodeChange
+export type CodeOutcome<T extends CodeChange = CodeChange> = {
+  readonly change: T
   readonly run: CodeRun
   readonly stats: Readonly<Record<string, string>>
+  /** Patch per repository, against the base the branch started from. */
+  readonly patches: Readonly<Record<string, string>>
   readonly dir: string
 }
 
-export const codeOutputDir = (outDir: string, key: string): string =>
-  join(ticketOutputDir(outDir, key), 'code')
+/** out/<KEY>/code (fixes) or out/<KEY>/feature/code (new functionality). */
+export const codeOutputDir = (outDir: string, key: string, kind: WorktreeKind = 'fix'): string =>
+  kind === 'fix'
+    ? join(ticketOutputDir(outDir, key), 'code')
+    : join(ticketOutputDir(outDir, key), 'feature', 'code')
 
-export const loadCodeRun = async (
-  outDir: string,
-  key: string,
-): Promise<Result<CodeRun, string>> => {
+export const loadCodeRun = async (dir: string, key: string): Promise<Result<CodeRun, string>> => {
   try {
     const parsed = CodeRunSchema.safeParse(
-      JSON.parse(await readFile(join(codeOutputDir(outDir, key), 'run.json'), 'utf8')),
+      JSON.parse(await readFile(join(dir, 'run.json'), 'utf8')),
     )
-    return parsed.success ? ok(parsed.data) : err(`out/${key}/code/run.json is unreadable.`)
+    return parsed.success ? ok(parsed.data) : err(`${join(dir, 'run.json')} is unreadable.`)
   } catch {
-    return err(`No code change for ${key} yet: run \`ticketsmith code ${key}\` first.`)
+    return err(`No code change for ${key} yet.`)
   }
 }
 
-export const saveCodeRun = async (outDir: string, run: CodeRun): Promise<Result<void, string>> => {
-  const written = await writeOutputFiles(codeOutputDir(outDir, run.ticket), {
-    'run.json': `${JSON.stringify(run, null, 2)}\n`,
-  })
+export const saveCodeRun = async (dir: string, run: CodeRun): Promise<Result<void, string>> => {
+  const written = await writeOutputFiles(dir, { 'run.json': `${JSON.stringify(run, null, 2)}\n` })
   return written.ok ? ok(undefined) : err(describeOutputError(written.error))
 }
 
 const renderSummary = (
   key: string,
+  title: string,
   change: CodeChange,
   repos: readonly RepoOutcome[],
   stats: Readonly<Record<string, string>>,
+  extra: readonly string[],
 ): string =>
   [
-    `# ${key}: code change`,
+    `# ${key}: ${title}`,
     '',
     '> Written by the agent in a worktree per repository; review the diffs before pushing.',
     '',
@@ -100,6 +105,7 @@ const renderSummary = (
     '',
     ...(change.risks.length > 0 ? change.risks.map((risk) => `- ${risk}`) : ['- None noted.']),
     '',
+    ...extra,
     '## Branches',
     '',
     ...repos.map(
@@ -109,19 +115,54 @@ const renderSummary = (
     '',
   ].join('\n')
 
-/**
- * The agent changes code in a worktree per repository (file tools confined to them, tests through
- * code_run_tests, no shell). Then Ticketsmith commits, runs the tests again itself, and writes
- * out/<KEY>/code/ (summary, one diff per repository, run.json). Nothing is pushed here.
- */
-export const runCodeChange = async (
+/** What differs between fixing a bug and building new functionality on the same machinery. */
+export type WorktreeChangeSpec<T extends CodeChange> = {
+  readonly kind: WorktreeKind
+  readonly schema: z.ZodType<T>
+  readonly title: string
+  /** `mask` puts text through the run's vault before it reaches the agent. */
+  prompt(key: string, worktrees: readonly Worktree[], mask: (text: string) => string): string
+  /** Extra summary sections (e.g. acceptance criteria), from the answer and the patches. */
+  summarize?(change: T, patches: Readonly<Record<string, string>>): readonly string[]
+}
+
+const FIX: WorktreeChangeSpec<CodeChange> = {
+  kind: 'fix',
+  schema: CodeChangeSchema,
+  title: 'code change',
+  prompt: (key, worktrees) =>
+    [
+      `Fix ticket ${key} in code.`,
+      `Your worktrees: ${worktrees.map((w) => `${w.repository.config.name} (branch ${w.branch}) at ${w.dir}`).join('; ')}.`,
+      'Read knowledge_read("brief.md") and the ticket (jira_get_issue) first. Follow the playbook in your instructions and finish with the required JSON answer.',
+    ].join('\n'),
+}
+
+/** `ticketsmith code <KEY>`: fix a ticket from each repository's fix branch. */
+export const runCodeChange = (
   services: Services,
   opened: OpenedProject,
   tickets: ConnectedTickets,
   key: TicketKey,
   options: CodeOptions,
   startToolServer: (code: CodeToolContext) => Promise<AgentToolServer>,
-): Promise<Result<CodeOutcome, string>> => {
+): Promise<Result<CodeOutcome, string>> =>
+  runWorktreeChange(services, opened, tickets, key, options, FIX, startToolServer)
+
+/**
+ * The agent changes code in a worktree per repository (file tools confined to them, tests through
+ * code_run_tests, no shell). Then Ticketsmith commits, runs the tests again itself, and writes the
+ * summary, one diff per repository and run.json. Nothing is pushed here.
+ */
+export const runWorktreeChange = async <T extends CodeChange>(
+  services: Services,
+  opened: OpenedProject,
+  tickets: ConnectedTickets,
+  key: TicketKey,
+  options: CodeOptions,
+  spec: WorktreeChangeSpec<T>,
+  startToolServer: (code: CodeToolContext) => Promise<AgentToolServer>,
+): Promise<Result<CodeOutcome<T>, string>> => {
   const { project, paths } = opened
   const all = projectRepositories(project, paths)
   const unknown = (options.repos ?? []).filter((name) => !all.some((r) => r.config.name === name))
@@ -153,6 +194,7 @@ export const runCodeChange = async (
       repository,
       ticket.value.key,
       ticket.value.summary,
+      spec.kind,
     )
     if (!prepared.ok) return err(`${repository.config.name}: ${prepared.error}`)
     worktrees.push(prepared.value)
@@ -169,7 +211,7 @@ export const runCodeChange = async (
     })),
     testTimeoutMs,
   })
-  let change: CodeChange
+  let change: T
   let costUsd = 0
   let turns = 0
   try {
@@ -177,11 +219,7 @@ export const runCodeChange = async (
     const result = await runStructured(
       services.agent,
       {
-        prompt: [
-          `Fix ticket ${ticket.value.key} of the project "${project.name}" in code.`,
-          `Your worktrees: ${worktrees.map((w) => `${w.repository.config.name} (branch ${w.branch}) at ${w.dir}`).join('; ')}.`,
-          'Read knowledge_read("brief.md") and the ticket (jira_get_issue) first. Follow the playbook in your instructions and finish with the required JSON answer.',
-        ].join('\n'),
+        prompt: `Project "${project.name}".\n${spec.prompt(ticket.value.key, worktrees, server.mask)}`,
         playbook: playbook.value.text,
         mcpConfig: server.mcpConfig,
         model,
@@ -189,7 +227,7 @@ export const runCodeChange = async (
         timeoutMs: project.agent.timeoutMinutes * 60_000,
         workspace: { dirs: worktrees.map((w) => w.dir) },
       },
-      CodeChangeSchema,
+      spec.schema,
     )
     await server.record({
       tool: 'agent_run',
@@ -243,7 +281,7 @@ export const runCodeChange = async (
       dir: worktree.dir,
       branch: worktree.branch,
       base: worktree.base,
-      target: worktree.repository.config.prTarget ?? worktree.repository.config.branches.fix,
+      target: changeBranches(worktree.repository.config, spec.kind).target,
       commit: commit.value,
       tests:
         tests === null
@@ -260,6 +298,7 @@ export const runCodeChange = async (
 
   const run: CodeRun = {
     ticket: ticket.value.key,
+    kind: spec.kind,
     playbook: playbook.value.name,
     finishedAt: new Date().toISOString(),
     costUsd,
@@ -267,12 +306,22 @@ export const runCodeChange = async (
     pullRequest: { title: change.prTitle, body: change.prDescription },
     repos: outcomes,
   }
-  const dir = codeOutputDir(paths.outDir, ticket.value.key)
+  const dir = codeOutputDir(paths.outDir, ticket.value.key, spec.kind)
+  const patches = Object.fromEntries(
+    Object.entries(files).map(([file, patch]) => [file.replace(/\.diff$/, ''), patch]),
+  )
   const written = await writeOutputFiles(dir, {
     ...files,
-    'summary.md': renderSummary(ticket.value.key, change, outcomes, stats),
+    'summary.md': renderSummary(
+      ticket.value.key,
+      spec.title,
+      change,
+      outcomes,
+      stats,
+      spec.summarize?.(change, patches) ?? [],
+    ),
     'run.json': `${JSON.stringify(run, null, 2)}\n`,
   })
   if (!written.ok) return err(describeOutputError(written.error))
-  return ok({ change, run, stats, dir })
+  return ok({ change, run, stats, patches, dir })
 }

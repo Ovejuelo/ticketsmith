@@ -43,4 +43,10 @@ export {
   suggestRepositoryName,
   syncRepository,
 } from './repositories.ts'
-export { prepareWorktree, type Worktree, worktreeDir } from './worktrees.ts'
+export {
+  changeBranches,
+  prepareWorktree,
+  type Worktree,
+  type WorktreeKind,
+  worktreeDir,
+} from './worktrees.ts'

@@ -160,6 +160,14 @@ export const GitRepositoryConfigSchema = z
       .default('fix/{key}-{slug}'),
     /** Where pull requests go (default: the fix branch). */
     prTarget: BranchNameSchema.optional(),
+    /** Branch name for new functionality (`ticketsmith feature`), from the feature branch. */
+    featureBranchPattern: z
+      .string()
+      .regex(/^[A-Za-z0-9._/{}-]+$/, 'Use letters, digits, ".", "_", "/", "-" and {key}/{slug}')
+      .refine((pattern) => pattern.includes('{key}'), 'The pattern must include {key}')
+      .default('feature/{key}-{slug}'),
+    /** Where new-functionality pull requests go (default: the feature branch). */
+    featurePrTarget: BranchNameSchema.optional(),
     /** Pull request host; detected from the URL when absent (github.com, bitbucket.org). */
     host: z
       .object({

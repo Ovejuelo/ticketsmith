@@ -16,12 +16,33 @@ export type Worktree = {
   readonly base: string
 }
 
-export const worktreeDir = (paths: ProjectPaths, key: string, repo: string): string =>
-  join(paths.worktreesDir, key, repo)
+/** A fix (from the fix branch) or new functionality (from the feature branch). */
+export type WorktreeKind = 'fix' | 'feature'
+
+export const worktreeDir = (
+  paths: ProjectPaths,
+  key: string,
+  repo: string,
+  kind: WorktreeKind = 'fix',
+): string => join(paths.worktreesDir, kind === 'fix' ? key : `${key}-feature`, repo)
+
+/** The branch a kind of change starts from, its name pattern and where its pull request goes. */
+export const changeBranches = (config: Repository['config'], kind: WorktreeKind) =>
+  kind === 'fix'
+    ? {
+        base: config.branches.fix,
+        pattern: config.branchPattern,
+        target: config.prTarget ?? config.branches.fix,
+      }
+    : {
+        base: config.branches.feature,
+        pattern: config.featureBranchPattern,
+        target: config.featurePrTarget ?? config.branches.feature,
+      }
 
 /**
  * The ticket's worktree for a repository: the clone is fetched, then a branch named by the
- * repository's pattern is created from its fix branch. An existing worktree is reused, so a second
+ * repository's pattern is created from its fix branch (or feature branch for new functionality). An existing worktree is reused, so a second
  * run continues on the same changes.
  */
 export const prepareWorktree = async (
@@ -29,10 +50,12 @@ export const prepareWorktree = async (
   repository: Repository,
   key: string,
   summary: string,
+  kind: WorktreeKind = 'fix',
 ): Promise<Result<Worktree, string>> => {
-  const branch = branchFor(repository.config.branchPattern, key, summary)
+  const { base: baseBranch, pattern } = changeBranches(repository.config, kind)
+  const branch = branchFor(pattern, key, summary)
   if (!branch.ok) return branch
-  const dir = worktreeDir(paths, key, repository.config.name)
+  const dir = worktreeDir(paths, key, repository.config.name, kind)
   const synced = await syncRepository(repository)
   if (!synced.ok) return synced
   if (!existsSync(join(dir, '.git'))) {
@@ -41,11 +64,11 @@ export const prepareWorktree = async (
       repository.dir,
       dir,
       branch.value,
-      `refs/remotes/origin/${repository.config.branches.fix}`,
+      `refs/remotes/origin/${baseBranch}`,
     )
     if (!added.ok) return added
   }
-  const base = await mergeBase(dir, `refs/remotes/origin/${repository.config.branches.fix}`)
+  const base = await mergeBase(dir, `refs/remotes/origin/${baseBranch}`)
   if (!base.ok) return base
   return ok({ repository, dir, branch: branch.value, base: base.value })
 }

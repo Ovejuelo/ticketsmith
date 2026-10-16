@@ -22,6 +22,7 @@ export type RepoOutcome = z.infer<typeof RepoOutcomeSchema>
  */
 export const CodeRunSchema = z.object({
   ticket: z.string(),
+  kind: z.enum(['fix', 'feature']).default('fix'),
   playbook: z.string(),
   finishedAt: z.string(),
   costUsd: z.number(),

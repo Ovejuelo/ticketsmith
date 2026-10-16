@@ -34,6 +34,7 @@ export type ToolSession = {
   readonly server: McpServer
   readonly vault: PlaceholderVault
   readonly audit: AuditLog
+  mask(text: string): string
   toolCalls(): Readonly<Record<string, number>>
   close(): Promise<void>
 }
@@ -115,6 +116,7 @@ export const openToolSession = async (
     server,
     vault,
     audit,
+    mask: (text) => vault.mask(text, project.masking).text,
     toolCalls: () => ({ ...calls }),
     close: async () => {
       if (databases !== null) await databases[Symbol.asyncDispose]()
@@ -174,6 +176,7 @@ export const startHttpToolServer = async (session: ToolSession): Promise<AgentTo
       },
     },
     reveal: (text) => session.vault.reveal(text),
+    mask: session.mask,
     toolCalls: session.toolCalls,
     record: (entry) => session.audit.record(entry),
     close: async () => {

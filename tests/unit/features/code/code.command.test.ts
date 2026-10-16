@@ -149,13 +149,33 @@ describe('ticketsmith code', () => {
       askToken: async () => token,
     })
 
-    expect(await pushAndOpen(cli.services, opened, 'OPS-7', undefined, io(false))).toMatchObject({
+    expect(
+      await pushAndOpen(
+        cli.services,
+        opened,
+        join(paths.outDir, 'OPS-7', 'code'),
+        'OPS-7',
+        undefined,
+        io(false),
+      ),
+    ).toMatchObject({
       ok: true,
     })
     expect(runGit(remote.dir, 'branch', '--list', 'hotfix/*').trim()).toBe('')
 
     // A file:// remote has no provider: push, then the text to paste.
-    expect((await pushAndOpen(cli.services, opened, 'OPS-7', undefined, io(true))).ok).toBe(true)
+    expect(
+      (
+        await pushAndOpen(
+          cli.services,
+          opened,
+          join(paths.outDir, 'OPS-7', 'code'),
+          'OPS-7',
+          undefined,
+          io(true),
+        )
+      ).ok,
+    ).toBe(true)
     expect(runGit(remote.dir, 'branch', '--list', 'hotfix/*').trim()).toBe(
       'hotfix/OPS-7-pago-con-tarjeta-vencida',
     )
@@ -169,7 +189,16 @@ describe('ticketsmith code', () => {
     )
     const reopened = await openProject(cli.services, undefined)
     expect(
-      (await pushAndOpen(cli.services, reopened, 'OPS-7', undefined, io(true, 'ghp_test'))).ok,
+      (
+        await pushAndOpen(
+          cli.services,
+          reopened,
+          join(paths.outDir, 'OPS-7', 'code'),
+          'OPS-7',
+          undefined,
+          io(true, 'ghp_test'),
+        )
+      ).ok,
     ).toBe(true)
     expect(cli.pullRequests.created[0]).toMatchObject({
       type: 'github',
