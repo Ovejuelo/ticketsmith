@@ -13,6 +13,8 @@ import type {
 } from '../../agent-runtime.port.ts'
 
 const KILL_GRACE_MS = 5_000
+/** File tools for code changes; --restricted confines them to the workspace. Never Bash. */
+const FILE_TOOLS = 'Read,Edit,Write,Glob,Grep'
 
 const ResultSchema = z.object({
   type: z.literal('result'),
@@ -70,6 +72,7 @@ export class ClaudeCodeCliRuntime implements AgentRuntime {
 
   /** The exact arguments, exported for tests and for `--verbose` diagnostics. */
   static args(request: AgentRequest): string[] {
+    const dirs = request.workspace?.dirs ?? []
     return [
       '-p',
       request.prompt,
@@ -83,9 +86,10 @@ export class ClaudeCodeCliRuntime implements AgentRuntime {
       JSON.stringify(request.mcpConfig),
       '--strict-mcp-config',
       '--tools',
-      '',
+      dirs.length === 0 ? '' : FILE_TOOLS,
       '--allowedTools',
-      'mcp__ticketsmith__*',
+      dirs.length === 0 ? 'mcp__ticketsmith__*' : `${FILE_TOOLS},mcp__ticketsmith__*`,
+      ...dirs.slice(1).flatMap((dir) => ['--add-dir', dir]),
       '--restricted',
       '--permission-prompts',
       'none',
@@ -98,14 +102,15 @@ export class ClaudeCodeCliRuntime implements AgentRuntime {
   }
 
   async run(request: AgentRequest): Promise<Result<AgentRun, AgentError>> {
-    const cwd = await mkdtemp(join(tmpdir(), 'ticketsmith-agent-'))
+    const workspace = request.workspace?.dirs[0]
+    const cwd = workspace ?? (await mkdtemp(join(tmpdir(), 'ticketsmith-agent-')))
     try {
       const exit = await this.#exec(ClaudeCodeCliRuntime.args(request), cwd, request.timeoutMs)
       if (exit.missing) return err({ kind: 'not-installed' })
       if (exit.timedOut) return err({ kind: 'timeout', afterMs: request.timeoutMs })
       return parseResult(exit)
     } finally {
-      await rm(cwd, { recursive: true, force: true })
+      if (workspace === undefined) await rm(cwd, { recursive: true, force: true })
     }
   }
 

@@ -68,6 +68,25 @@ describe('ClaudeCodeCliRuntime', () => {
     expect(call?.secretVisible).toBe(false) // TICKETSMITH_* never reach the agent
   })
 
+  it('gives code runs the file tools, confined to the worktrees, and never a shell', async () => {
+    const dirs = [fake.dir, `${fake.dir}/../other`]
+    await runtime('ok').run({ ...request, workspace: { dirs } })
+    const [call] = fake.calls()
+    const args = call?.args ?? []
+    expect(args[args.indexOf('--tools') + 1]).toBe('Read,Edit,Write,Glob,Grep')
+    expect(args[args.indexOf('--allowedTools') + 1]).toBe(
+      'Read,Edit,Write,Glob,Grep,mcp__ticketsmith__*',
+    )
+    expect(args).toContain('--restricted')
+    expect(args.slice(args.indexOf('--add-dir'), args.indexOf('--add-dir') + 2)).toEqual([
+      '--add-dir',
+      dirs[1],
+    ])
+    expect(args.join(' ')).not.toMatch(/Bash/)
+    expect(call?.cwd).toBe(await import('node:fs').then((fs) => fs.realpathSync(fake.dir)))
+    expect(await import('node:fs').then((fs) => fs.existsSync(fake.dir))).toBe(true) // the workspace is kept
+  })
+
   it('reports budget, sign-in, crashes and missing structured answers as errors', async () => {
     expect(await runtime('budget').run(request)).toEqual({
       ok: false,

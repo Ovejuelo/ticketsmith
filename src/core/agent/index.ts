@@ -8,6 +8,8 @@ export {
   type McpConfig,
 } from './agent-runtime.port.ts'
 export {
+  type CodeChange,
+  CodeChangeSchema,
   EvidenceSchema,
   type RepoAnalysis,
   RepoAnalysisSchema,

@@ -13,6 +13,11 @@ export type AgentRequest = {
   readonly model?: string | undefined
   readonly maxBudgetUsd: number
   readonly timeoutMs: number
+  /**
+   * Code changes only: folders (ticket worktrees) the agent may read and edit with Claude Code's
+   * file tools, confined to them. Never a shell. Without it the agent has no file access at all.
+   */
+  readonly workspace?: { readonly dirs: readonly string[] } | undefined
 }
 
 export type AgentRun = {

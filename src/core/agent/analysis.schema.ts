@@ -47,3 +47,28 @@ export const RepoAnalysisSchema = z.object({
     .describe('Domain vocabulary found in the code'),
 })
 export type RepoAnalysis = z.infer<typeof RepoAnalysisSchema>
+
+/** The answer of a code change (playbook `code-fix`). */
+export const CodeChangeSchema = z.object({
+  summary: text('What was wrong and what you changed, in two or three sentences'),
+  rootCause: text('The cause in the code, with repo/file:line'),
+  changes: z
+    .array(
+      z.object({
+        repo: text('Repository'),
+        file: text('File path'),
+        what: text('What changed there'),
+      }),
+    )
+    .describe('Every file you changed'),
+  testsAdded: z.array(z.string().min(1)).describe('Tests you added or changed (file and name)'),
+  testsPassed: z.boolean().describe('Whether code_run_tests passed after the change'),
+  risks: z.array(z.string().min(1)).describe('What could break or still needs a human check'),
+  prTitle: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe('Pull request title, e.g. "fix(OPS-123): reject expired cards"'),
+  prDescription: text('Pull request description in Markdown, for a reviewer; no customer data'),
+})
+export type CodeChange = z.infer<typeof CodeChangeSchema>

@@ -2,11 +2,13 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { err, ok, type Result } from '../kernel/index.ts'
 import { BUG_PLAYBOOK } from './playbooks/bug.ts'
+import { CODE_FIX_PLAYBOOK } from './playbooks/code-fix.ts'
 import { REPO_ANALYSIS_PLAYBOOK } from './playbooks/repo-analysis.ts'
 import { SERVICE_REQUEST_PLAYBOOK } from './playbooks/service-request.ts'
 
 export const BUILT_IN_PLAYBOOKS: Readonly<Record<string, string>> = {
   bug: BUG_PLAYBOOK,
+  'code-fix': CODE_FIX_PLAYBOOK,
   'repo-analysis': REPO_ANALYSIS_PLAYBOOK,
   'service-request': SERVICE_REQUEST_PLAYBOOK,
 }
