@@ -17,6 +17,8 @@ describe('runStructured', () => {
     const agent = new FakeAgentRuntime().reply({ answer: 'found' })
     const result = await runStructured(agent, request, Answer)
     expect(result.ok && result.value.value).toEqual({ answer: 'found' })
+    // Claude Code 2.1.301 rejects the draft 2020-12 meta-schema URI (found in a live run).
+    expect(agent.requests[0]?.outputSchema).not.toHaveProperty('$schema')
     expect(agent.requests[0]?.outputSchema).toMatchObject({
       type: 'object',
       properties: { answer: { type: 'string', minLength: 3 } },

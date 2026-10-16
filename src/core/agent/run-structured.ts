@@ -17,7 +17,11 @@ export const runStructured = async <T>(
   request: Omit<AgentRequest, 'outputSchema'>,
   schema: z.ZodType<T>,
 ): Promise<Result<StructuredRun<T>, AgentError>> => {
-  const outputSchema = z.toJSONSchema(schema) as Record<string, unknown>
+  // Claude Code's validator rejects the draft 2020-12 meta-schema URI zod adds; the schema itself is plain.
+  const { $schema: _metaSchema, ...outputSchema } = z.toJSONSchema(schema) as Record<
+    string,
+    unknown
+  >
   const runs: AgentRun[] = []
   let prompt = request.prompt
   for (let attempt = 1; attempt <= 2; attempt++) {
