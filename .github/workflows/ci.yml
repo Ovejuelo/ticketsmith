@@ -35,6 +35,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
+          package-manager-cache: false # this job does not install pnpm
       - name: Plugin version matches package.json
         run: test "$(node -p "require('./package.json').version")" = "$(node -p "require('./plugin/.claude-plugin/plugin.json').version")"
       - run: npx -y @anthropic-ai/claude-code plugin validate --strict .
