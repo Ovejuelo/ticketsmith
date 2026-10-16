@@ -72,3 +72,61 @@ export const CodeChangeSchema = z.object({
   prDescription: text('Pull request description in Markdown, for a reviewer; no customer data'),
 })
 export type CodeChange = z.infer<typeof CodeChangeSchema>
+
+/** The answer of a feature design run (playbook `feature-design`): understanding, spec and plan. */
+export const FeatureDesignSchema = z.object({
+  understanding: text('What is being asked, why, and for whom, in your own words'),
+  assumptions: z
+    .array(z.string().min(1))
+    .describe('What you assumed because the ticket does not say'),
+  questions: z
+    .array(
+      z.object({
+        question: text('A question the requester must answer'),
+        why: text('What it changes in the design'),
+      }),
+    )
+    .describe('Open questions that block the design; empty when there are none'),
+  spec: z.object({
+    summary: text('The functionality in two or three sentences, in terms the requester recognizes'),
+    behavior: z.array(z.string().min(1)).describe('Expected behavior, one statement each'),
+    acceptanceCriteria: z.array(z.string().min(1)).min(1).describe('Testable criteria, one each'),
+    outOfScope: z.array(z.string().min(1)).describe('What this does not include'),
+  }),
+  plan: z.object({
+    repos: z
+      .array(
+        z.object({
+          repo: text('Repository'),
+          changes: z
+            .array(z.string().min(1))
+            .describe('Endpoints, models, screens… to add or change, with paths'),
+        }),
+      )
+      .describe('Changes per repository'),
+    schemaChanges: z
+      .array(z.string().min(1))
+      .describe('Database schema changes, as migration files to add (never run)'),
+    tests: z.array(z.string().min(1)).describe('Tests to add, per acceptance criterion'),
+    risks: z.array(z.string().min(1)),
+    rollout: text('How to release it: order across repositories, migrations, flags, communication'),
+  }),
+})
+export type FeatureDesign = z.infer<typeof FeatureDesignSchema>
+
+/** The answer of implementing an approved feature plan (playbook `feature-implement`). */
+export const FeatureImplementationSchema = CodeChangeSchema.extend({
+  acceptanceCriteria: z
+    .array(
+      z.object({
+        criterion: text('The criterion as written in the spec'),
+        met: z.boolean(),
+        evidence: text('The test or code that shows it'),
+      }),
+    )
+    .describe('Every acceptance criterion of the spec'),
+  migrations: z
+    .array(z.string().min(1))
+    .describe('Migration files you added (repo/path), never run'),
+})
+export type FeatureImplementation = z.infer<typeof FeatureImplementationSchema>
