@@ -70,6 +70,17 @@ describe('maskSensitiveData', () => {
     )
   })
 
+  // Regression: repository maps and repo_list showed ssh clone URLs as [EMAIL_1]@bitbucket.org.
+  it('leaves git remote URLs alone but still masks addresses next to punctuation', () => {
+    const remotes =
+      'git@bitbucket.org:acme/billing-backend.git ssh://git@git.acme.dev:7999/acme/tools.git ssh://git@github.com/acme/web'
+    expect(mask(remotes).text).toBe(remotes)
+    expect(
+      mask('Write to ana@northwind.mx: urgent (cc juan@contoso.com). Thanks, ana@northwind.mx.')
+        .text,
+    ).toBe('Write to [EMAIL_1]: urgent (cc [EMAIL_2]). Thanks, [EMAIL_1].')
+  })
+
   it('only runs the enabled detectors', () => {
     const result = maskSensitiveData('a@x.com +52 55 1234 5678', {
       detectors: ['phone'],

@@ -89,7 +89,11 @@ const DETECTORS: Readonly<Record<MaskKind, Detector>> = {
   },
   email: {
     name: 'email',
-    patterns: [/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g],
+    // Not followed by ":" or "/" and more text: that is a git remote (git@host:org/repo.git,
+    // ssh://git@host/org/repo), not an address.
+    patterns: [
+      /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?![A-Za-z0-9-]|\.[A-Za-z0-9]|[:/][^\s])/g,
+    ],
     normalize: (value) => value.toLowerCase(),
     render: (placeholder, match, options) => {
       const domain = match.slice(match.lastIndexOf('@') + 1).toLowerCase()
