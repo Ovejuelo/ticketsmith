@@ -16,6 +16,8 @@ export type McpServerDeps = {
   readonly audit: AuditLog
   readonly version: string
   readonly clock?: () => number
+  /** Share the session vault with the caller (e.g. to reveal an agent's answer locally). */
+  readonly vault?: PlaceholderVault
 }
 
 const MASKING_NOTE =
@@ -32,7 +34,7 @@ export const createMcpServer = (deps: McpServerDeps): McpServer => {
       instructions: `Tools for the "${deps.project}" project. ${MASKING_NOTE}`,
     },
   )
-  const vault = new PlaceholderVault()
+  const vault = deps.vault ?? new PlaceholderVault()
   const context: ToolContext = {
     ...deps.context,
     resolvePlaceholders: (text) => vault.resolve(text),

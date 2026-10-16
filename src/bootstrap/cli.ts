@@ -7,17 +7,11 @@ import {
   type Io,
   openProject,
   type Runtime,
-  requireDatabases,
-  requireTickets,
 } from '../core/cli/index.ts'
-import { DATABASE_CATALOG, TableInfoSchema } from '../core/database/index.ts'
-import { configuredIntegrations, migrateLegacyProfiles } from '../core/project/index.ts'
-import { projectRepositories } from '../core/repos/index.ts'
+import { migrateLegacyProfiles } from '../core/project/index.ts'
 import type { Services } from '../core/services/index.ts'
-import { describeStorageError, withProjectDatabase } from '../core/storage/index.ts'
-import { defaultProjectJql } from '../core/tickets/index.ts'
 import { FEATURES } from './features.ts'
-import { createMcpServer } from './mcp-server.ts'
+import { openToolSession, startHttpToolServer } from './tool-session.ts'
 
 export type CliContext = {
   readonly io: Io
@@ -36,65 +30,22 @@ export const buildProgram = (version: string, context: CliContext): Command => {
   const serveMcp = async (command: Command): Promise<void> => {
     const current = servicesFor(command)
     const opened = await openProject(current, globalOptions(command).project)
-    const { project, paths } = opened
-    const tickets = project.integrations.tickets ? await requireTickets(current, opened) : null
-    // Adapters open lazily (one pool per database used) and are closed when the client leaves.
-    const databases = project.integrations.databases ? requireDatabases(current, opened) : null
+    const session = await openToolSession(current, opened, { version, auditCommand: 'mcp' })
+    session.server.server.onclose = () => void session.close()
+    process.stdin.once('end', () => void session.close().finally(() => process.exit(0)))
+    await session.server.connect(new StdioServerTransport())
+  }
 
-    const server = createMcpServer({
-      project: project.name,
-      tools: FEATURES.flatMap((feature) => feature.tools),
-      integrations: configuredIntegrations(project),
-      context: {
-        tickets:
-          tickets === null
-            ? null
-            : {
-                source: tickets.source,
-                defaultJql:
-                  tickets.config.jql ??
-                  (tickets.config.projectKey === undefined
-                    ? undefined
-                    : defaultProjectJql(tickets.config.projectKey)),
-              },
-        databases:
-          databases === null
-            ? null
-            : {
-                connections: databases,
-                tables: async (target) => {
-                  const read = await withProjectDatabase(paths.sqlite, (db) =>
-                    db.catalog(
-                      DATABASE_CATALOG.integration,
-                      DATABASE_CATALOG.tableKind(target),
-                      TableInfoSchema,
-                    ),
-                  )
-                  if (!read.ok) return { ok: false, error: describeStorageError(read.error) }
-                  return read.value.ok
-                    ? { ok: true, value: read.value.value.map((entry) => entry.data) }
-                    : { ok: false, error: describeStorageError(read.value.error) }
-                },
-              },
-        repos:
-          project.integrations.repos === undefined
-            ? null
-            : {
-                repositories: projectRepositories(project, paths),
-                knowledgeDir: paths.knowledgeDir,
-              },
-      },
-      masking: project.masking,
-      audit: current.openAuditLog(project.name, paths, 'mcp'),
-      version,
-    })
-
-    const closeDatabases = async () => {
-      if (databases !== null) await databases[Symbol.asyncDispose]()
-    }
-    server.server.onclose = () => void closeDatabases()
-    process.stdin.once('end', () => void closeDatabases().finally(() => process.exit(0)))
-    await server.connect(new StdioServerTransport())
+  const startAgentToolServer: CommandDeps['startAgentToolServer'] = async (command, options) => {
+    const current = servicesFor(command)
+    const opened = await openProject(current, globalOptions(command).project)
+    return startHttpToolServer(
+      await openToolSession(current, opened, {
+        version,
+        auditCommand: options.auditCommand,
+        only: options.only,
+      }),
+    )
   }
 
   const deps: CommandDeps = {
@@ -103,6 +54,7 @@ export const buildProgram = (version: string, context: CliContext): Command => {
     runtime: context.runtime,
     servicesFor,
     serveMcp,
+    startAgentToolServer,
   }
 
   const program = new Command('ticketsmith')

@@ -1,4 +1,6 @@
 export {
+  type AgentToolServer,
+  type AgentToolServerOptions,
   type CommandDeps,
   type CommandFactory,
   type GlobalOptions,

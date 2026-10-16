@@ -32,6 +32,8 @@ export type ToolContext = {
   readonly databases: DatabasesToolContext | null
   /** Null when the project has no repositories. */
   readonly repos: ReposToolContext | null
+  /** The project's knowledge folder (always there; its files are masked when written). */
+  readonly knowledge: { readonly dir: string }
   /** Turns session placeholders ([EMAIL_1]) back into real values; fails on unknown ones. */
   resolvePlaceholders(text: string): Result<string, readonly string[]>
 }

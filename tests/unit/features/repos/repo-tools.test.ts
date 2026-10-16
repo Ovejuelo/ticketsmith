@@ -63,6 +63,7 @@ describe('repository MCP tools', () => {
         tickets: null,
         databases: null,
         repos: { repositories, knowledgeDir: join(work, 'knowledge') },
+        knowledge: { dir: join(work, 'knowledge') },
       },
       masking: { detectors: ALL_MASK_KINDS, custom: [], keepEmailDomains: true },
       audit,

@@ -54,6 +54,7 @@ describe('database MCP tools', () => {
       context: {
         tickets: null,
         repos: null,
+        knowledge: { dir: '/nonexistent/knowledge' },
         databases: {
           connections: new DatabaseConnections(cli.services, project),
           tables: async (target) => ok(target === 'shards' ? [users] : []),
