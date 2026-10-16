@@ -28,12 +28,20 @@ jobs:
       - run: pnpm typecheck && pnpm lint && pnpm arch && pnpm test
       - run: pnpm build && node dist/main.js --version
       # Trusted publishing needs npm >= 11.5; NPM_TOKEN is only a fallback until it is configured.
-      - run: npm install -g npm@latest && npm publish --provenance --access public
+      # A version published by hand (e.g. the first one) is not an error: the release still gets made.
+      - run: |
+          npm install -g npm@latest
+          if npm view "ticketsmith@${GITHUB_REF_NAME#v}" version >/dev/null 2>&1; then
+            echo "ticketsmith@${GITHUB_REF_NAME#v} is already on npm, skipping publish"
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: GitHub Release
         run: |
           awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## "v" " {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
         env:
           GH_TOKEN: ${{ github.token }}
