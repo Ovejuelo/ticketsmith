@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { TableInfo } from '../database/index.ts'
 import { err, ok, type Result } from '../kernel/index.ts'
 import type { Integration } from '../project/index.ts'
+import type { Repository } from '../repos/index.ts'
 import type { DatabaseConnections } from '../services/index.ts'
 import type { TicketSource } from '../tickets/index.ts'
 
@@ -17,12 +18,20 @@ export type DatabasesToolContext = {
   tables(target: string): Promise<Result<readonly TableInfo[], string>>
 }
 
+export type ReposToolContext = {
+  readonly repositories: readonly Repository[]
+  /** Where knowledge/repos/<name>.md maps live, to point the agent at them. */
+  readonly knowledgeDir: string
+}
+
 /** What every MCP tool can use; built per session by bootstrap/mcp-server.ts. */
 export type ToolContext = {
   /** Null when the project has no ticket source (tools requiring it are not registered then). */
   readonly tickets: TicketsToolContext | null
   /** Null when the project has no databases. */
   readonly databases: DatabasesToolContext | null
+  /** Null when the project has no repositories. */
+  readonly repos: ReposToolContext | null
   /** Turns session placeholders ([EMAIL_1]) back into real values; fails on unknown ones. */
   resolvePlaceholders(text: string): Result<string, readonly string[]>
 }
@@ -70,3 +79,6 @@ export const databasesContext = (context: ToolContext): Result<DatabasesToolCont
 
 export const unknownPlaceholdersMessage = (placeholders: readonly string[]): string =>
   `Unknown placeholder(s) ${placeholders.join(', ')}: use only placeholders returned by this server in this session.`
+
+export const reposContext = (context: ToolContext): Result<ReposToolContext, string> =>
+  context.repos === null ? err('This project has no repositories configured.') : ok(context.repos)

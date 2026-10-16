@@ -53,6 +53,7 @@ describe('database MCP tools', () => {
       integrations: ['databases'],
       context: {
         tickets: null,
+        repos: null,
         databases: {
           connections: new DatabaseConnections(cli.services, project),
           tables: async (target) => ok(target === 'shards' ? [users] : []),

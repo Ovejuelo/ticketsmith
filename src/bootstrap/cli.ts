@@ -12,6 +12,7 @@ import {
 } from '../core/cli/index.ts'
 import { DATABASE_CATALOG, TableInfoSchema } from '../core/database/index.ts'
 import { configuredIntegrations, migrateLegacyProfiles } from '../core/project/index.ts'
+import { projectRepositories } from '../core/repos/index.ts'
 import type { Services } from '../core/services/index.ts'
 import { describeStorageError, withProjectDatabase } from '../core/storage/index.ts'
 import { defaultProjectJql } from '../core/tickets/index.ts'
@@ -74,6 +75,13 @@ export const buildProgram = (version: string, context: CliContext): Command => {
                     ? { ok: true, value: read.value.value.map((entry) => entry.data) }
                     : { ok: false, error: describeStorageError(read.value.error) }
                 },
+              },
+        repos:
+          project.integrations.repos === undefined
+            ? null
+            : {
+                repositories: projectRepositories(project, paths),
+                knowledgeDir: paths.knowledgeDir,
               },
       },
       masking: project.masking,
