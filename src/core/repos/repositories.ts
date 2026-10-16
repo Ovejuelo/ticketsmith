@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdir } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { err, ok, type Result } from '../kernel/index.ts'
 import type { Project, ProjectPaths, RepositoryConfig } from '../project/index.ts'
+import { type Commit, cloneRepository, resolveCommit, syncClone } from './git.ts'
 
 /** A configured repository and the folder of its dedicated clone. */
 export type Repository = {
@@ -42,3 +44,16 @@ export const suggestRepositoryName = (url: string): string =>
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^[-_]+/, '')
     .slice(0, 64)
+
+/** Clones the repository if needed, then moves the clone to the latest commit of its fix branch. */
+export const syncRepository = async (repository: Repository): Promise<Result<Commit, string>> => {
+  const { config, dir } = repository
+  if (!isCloned(dir)) {
+    await mkdir(dirname(dir), { recursive: true })
+    const cloned = await cloneRepository(config.url, dir)
+    if (!cloned.ok) return err(`clone failed: ${cloned.error}`)
+  }
+  const synced = await syncClone(dir, config.branches.fix)
+  if (!synced.ok) return synced
+  return resolveCommit(dir, 'HEAD')
+}

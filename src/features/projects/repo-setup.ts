@@ -21,9 +21,9 @@ import {
   remoteDefaultBranch,
   resolveCommit,
   suggestRepositoryName,
+  syncRepository,
 } from '../../core/repos/index.ts'
 import type { Services } from '../../core/services/index.ts'
-import { syncRepository } from './investigate-repos.ts'
 import { validateWith } from './jira-prompts.ts'
 import { detectRuntime, detectTestCommand, isManifest } from './repo-map.ts'
 
@@ -35,6 +35,9 @@ export type RepoFlags = {
   readonly protected?: string
   readonly node?: string
   readonly testCommand?: string
+  readonly allowCodeChanges?: boolean
+  readonly branchPattern?: string
+  readonly prTarget?: string
 }
 
 type Remote = { readonly defaultBranch: string; readonly branches: readonly string[] }
@@ -139,6 +142,9 @@ export const addRepositoryFromFlags = async (
       ...draft,
       runtime: { node: flags.node ?? detected.node },
       testCommand: flags.testCommand ?? detected.testCommand,
+      allowCodeChanges: flags.allowCodeChanges ?? false,
+      ...(flags.branchPattern === undefined ? {} : { branchPattern: flags.branchPattern }),
+      ...(flags.prTarget === undefined ? {} : { prTarget: flags.prTarget }),
     }),
     String,
   )
@@ -246,10 +252,23 @@ export const configureReposInteractively = async (
       message: 'Test command (empty for none)',
       initialValue: detected.testCommand ?? '',
     })
+    const allowCodeChanges = await askConfirm(
+      'Let the agent change code here (ticketsmith code)? It works in a worktree per ticket and asks you before every push.',
+      false,
+    )
+    const branchPattern = allowCodeChanges
+      ? await askText({
+          message: 'Branch name for a ticket ({key} and {slug} are replaced)',
+          initialValue: 'fix/{key}-{slug}',
+          validate: (value) => (value.includes('{key}') ? undefined : 'Include {key}'),
+        })
+      : undefined
     const config = parseConfig({
       ...draft.value,
       runtime: node.trim() === '' ? {} : { node: node.trim() },
       testCommand: testCommand.trim() === '' ? undefined : testCommand.trim(),
+      allowCodeChanges,
+      ...(branchPattern === undefined ? {} : { branchPattern: branchPattern.trim() }),
     })
     const updated = config.ok ? withRepository(current, config.value) : config
     if (!updated.ok) {

@@ -1,9 +1,13 @@
 import type { Result } from '../kernel/index.ts'
 
 /** `jira-token`, or `db-<database name>` for each configured database. */
-export type SecretName = 'jira-token' | `db-${string}`
+export type SecretName = 'jira-token' | `db-${string}` | `git-host-${string}`
 
 export const databaseSecret = (database: string): SecretName => `db-${database}`
+
+/** The pull-request API token for a git host, e.g. git-host-github-com. */
+export const gitHostSecret = (hostname: string): SecretName =>
+  `git-host-${hostname.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
 
 /** Environment variable that overrides a secret for every project (CI, evals). */
 export const secretEnvVariable = (name: SecretName): string =>

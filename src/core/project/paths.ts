@@ -29,6 +29,8 @@ export type ProjectPaths = {
   readonly reposDir: string
   /** Proposed database changes awaiting a human decision (real values: owner-only, never shared). */
   readonly changesDir: string
+  /** One git worktree per ticket and repository for code changes. */
+  readonly worktreesDir: string
 }
 
 type Env = Readonly<Record<string, string | undefined>>
@@ -65,5 +67,6 @@ export const projectPaths = (root: string): ProjectPaths => {
     cacheDir: join(localDir, 'cache'),
     reposDir: join(localDir, 'repos'),
     changesDir: join(localDir, 'changes'),
+    worktreesDir: join(localDir, 'worktrees'),
   }
 }

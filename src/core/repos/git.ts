@@ -254,3 +254,94 @@ export const readFile = async (
     ? ok({ kind: 'binary', bytes: bytes.length })
     : ok({ kind: 'text', text: bytes.toString('utf8') })
 }
+
+// --- Worktrees for code changes (phase 8): one per ticket and repository ---
+
+/** Whether a local branch exists in the clone. */
+export const branchExists = async (dir: string, branch: string): Promise<boolean> =>
+  (await git(['show-ref', '--verify', '--quiet', `refs/heads/${branch}`], { cwd: dir })).ok
+
+/** A new worktree at `path` on `branch`: created from `startRef`, or the existing branch reused. */
+export const addWorktree = async (
+  cloneDir: string,
+  path: string,
+  branch: string,
+  startRef: string,
+): Promise<Result<void, string>> => {
+  const args = (await branchExists(cloneDir, branch))
+    ? ['worktree', 'add', '--quiet', path, branch]
+    : ['worktree', 'add', '--quiet', '-b', branch, path, startRef]
+  const result = await git(args, { cwd: cloneDir })
+  return result.ok ? ok(undefined) : result
+}
+
+export const removeWorktree = async (
+  cloneDir: string,
+  path: string,
+  branch: string,
+): Promise<Result<void, string>> => {
+  const removed = await git(['worktree', 'remove', '--force', path], { cwd: cloneDir })
+  if (!removed.ok && !/is not a working tree/.test(removed.error)) return removed
+  await git(['worktree', 'prune'], { cwd: cloneDir })
+  const deleted = await git(['branch', '-D', branch], { cwd: cloneDir, okCodes: [1] })
+  return deleted.ok ? ok(undefined) : deleted
+}
+
+/** The commit where the worktree's branch left `baseRef`. */
+export const mergeBase = async (dir: string, baseRef: string): Promise<Result<string, string>> => {
+  const result = await git(['merge-base', 'HEAD', baseRef], { cwd: dir })
+  return result.ok ? ok(text(result.value).trim()) : result
+}
+
+/** Uncommitted changes, new files included, as a patch against HEAD (new files marked intent-to-add). */
+export const workingDiff = async (dir: string): Promise<Result<string, string>> => {
+  const marked = await git(['add', '--all', '--intent-to-add'], { cwd: dir })
+  if (!marked.ok) return marked
+  const result = await git(['diff', '--no-color', 'HEAD'], { cwd: dir })
+  return result.ok ? ok(text(result.value)) : result
+}
+
+/** Everything the branch changed since `base`, as a patch and as a --stat summary. */
+export const branchDiff = async (
+  dir: string,
+  base: string,
+): Promise<Result<{ readonly patch: string; readonly stat: string }, string>> => {
+  const patch = await git(['diff', '--no-color', `${base}..HEAD`], { cwd: dir })
+  if (!patch.ok) return patch
+  const stat = await git(['diff', '--no-color', '--stat', `${base}..HEAD`], { cwd: dir })
+  if (!stat.ok) return stat
+  return ok({ patch: text(patch.value), stat: text(stat.value) })
+}
+
+/** Commits every change in the worktree with the user's git identity; null when nothing changed. */
+export const commitAll = async (
+  dir: string,
+  message: string,
+): Promise<Result<string | null, string>> => {
+  const added = await git(['add', '--all'], { cwd: dir })
+  if (!added.ok) return added
+  const staged = await git(['diff', '--cached', '--quiet'], { cwd: dir, okCodes: [1] })
+  if (!staged.ok) return staged
+  if (staged.value.code === 0) return ok(null)
+  const committed = await git(['commit', '--quiet', '--no-verify', '-m', message], { cwd: dir })
+  if (!committed.ok) {
+    return err(
+      /tell me who you are|user\.email/i.test(committed.error)
+        ? 'git has no identity for commits: set `git config --global user.name` and `user.email`.'
+        : committed.error,
+    )
+  }
+  const head = await git(['rev-parse', 'HEAD'], { cwd: dir })
+  return head.ok ? ok(text(head.value).trim()) : head
+}
+
+/** Pushes HEAD to `branch` on origin: an explicit refspec, never forced. */
+export const pushBranch = async (dir: string, branch: string): Promise<Result<void, string>> => {
+  const valid = validateRef(branch)
+  if (!valid.ok) return valid
+  const result = await git(['push', '--quiet', 'origin', `HEAD:refs/heads/${branch}`], {
+    cwd: dir,
+    timeoutMs: REMOTE_TIMEOUT_MS,
+  })
+  return result.ok ? ok(undefined) : result
+}

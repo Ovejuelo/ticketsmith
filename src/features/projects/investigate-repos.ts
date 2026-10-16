@@ -1,20 +1,15 @@
-import { mkdir } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { OpenedProject } from '../../core/cli/index.ts'
 import { err, ok, type Result } from '../../core/kernel/index.ts'
 import { removeKnowledge, writeKnowledge } from '../../core/knowledge/index.ts'
 import {
   type Commit,
-  cloneRepository,
   type GrepMatch,
   grep,
-  isCloned,
   listFiles,
   projectRepositories,
   type Repository,
   readFile,
-  resolveCommit,
-  syncClone,
+  syncRepository,
 } from '../../core/repos/index.ts'
 import type { Services } from '../../core/services/index.ts'
 import type { ProjectDatabase } from '../../core/storage/index.ts'
@@ -41,19 +36,6 @@ import {
 } from './repo-map.ts'
 
 const MAX_MATCHES_PER_CATEGORY = 2000
-
-/** Clones the repository if needed, then moves the clone to the latest commit of its fix branch. */
-export const syncRepository = async (repository: Repository): Promise<Result<Commit, string>> => {
-  const { config, dir } = repository
-  if (!isCloned(dir)) {
-    await mkdir(dirname(dir), { recursive: true })
-    const cloned = await cloneRepository(config.url, dir)
-    if (!cloned.ok) return err(`clone failed: ${cloned.error}`)
-  }
-  const synced = await syncClone(dir, config.branches.fix)
-  if (!synced.ok) return synced
-  return resolveCommit(dir, 'HEAD')
-}
 
 /** Everything the map needs from one commit: files, manifests and grep matches. */
 export const collectFacts = async (

@@ -34,6 +34,7 @@ describe('projectPaths', () => {
       cacheDir: '/p/acme/local/cache',
       reposDir: '/p/acme/local/repos',
       changesDir: '/p/acme/local/changes',
+      worktreesDir: '/p/acme/local/worktrees',
     })
   })
 })

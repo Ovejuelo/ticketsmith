@@ -1,20 +1,39 @@
+export { branchFor, checkPushable, slugify } from './branch-name.ts'
 export {
+  addWorktree,
+  branchDiff,
+  branchExists,
   type Commit,
   cloneRepository,
+  commitAll,
   describeGitFailure,
   type FileContent,
   type GrepMatch,
   type GrepQuery,
   grep,
   listFiles,
+  mergeBase,
+  pushBranch,
   readFile,
   remoteBranches,
   remoteDefaultBranch,
+  removeWorktree,
   resolveCommit,
   syncClone,
   validateRef,
   validateRepoPath,
+  workingDiff,
 } from './git.ts'
+export {
+  compareUrl,
+  type HostType,
+  hostTypeOf,
+  type PullRequestError,
+  type PullRequestHost,
+  type PullRequestInput,
+  parseRemote,
+  type RemotePath,
+} from './pull-request-host.port.ts'
 export {
   cloneDir,
   findRepository,
@@ -22,4 +41,6 @@ export {
   projectRepositories,
   type Repository,
   suggestRepositoryName,
+  syncRepository,
 } from './repositories.ts'
+export { prepareWorktree, type Worktree, worktreeDir } from './worktrees.ts'

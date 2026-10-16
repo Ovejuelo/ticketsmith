@@ -2,7 +2,12 @@ export type FakeReply =
   | { readonly status?: number; readonly body?: unknown; readonly headers?: Record<string, string> }
   | Error
 
-export type RecordedRequest = { readonly url: URL; readonly headers: Headers }
+export type RecordedRequest = {
+  readonly url: URL
+  readonly headers: Headers
+  readonly method: string
+  readonly body: unknown
+}
 
 /**
  * Scripted fetch: replies are queued per pathname suffix and consumed in order; the last reply
@@ -19,7 +24,12 @@ export class FakeFetch {
 
   readonly fetch = async (input: string, init: RequestInit): Promise<Response> => {
     const url = new URL(input)
-    this.requests.push({ url, headers: new Headers(init.headers) })
+    this.requests.push({
+      url,
+      headers: new Headers(init.headers),
+      method: init.method ?? 'GET',
+      body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined,
+    })
 
     const route = [...this.#routes.keys()]
       .filter((suffix) => url.pathname.endsWith(suffix))

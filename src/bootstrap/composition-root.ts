@@ -13,6 +13,8 @@ import {
   resolvePaths,
   type TicketSourceConfig,
 } from '../core/project/index.ts'
+import { BitbucketCloudPullRequests } from '../core/repos/providers/bitbucket-cloud/bitbucket-pull-requests.ts'
+import { GitHubPullRequests } from '../core/repos/providers/github/github-pull-requests.ts'
 import { firstAvailable } from '../core/secrets/index.ts'
 import { EnvSecretStore } from '../core/secrets/providers/env/env-secret-store.ts'
 import { KeyringSecretStore } from '../core/secrets/providers/keyring/keyring-secret-store.ts'
@@ -53,6 +55,10 @@ export const createServices = ({ env, home, logger }: ServicesOptions): Services
     connectDatabase: (config, password) =>
       databaseConnectors[config.type](config, password, logger),
     agent: new ClaudeCodeCliRuntime(),
+    pullRequestHost: (type, apiUrl) =>
+      type === 'github'
+        ? new GitHubPullRequests({ apiUrl })
+        : new BitbucketCloudPullRequests({ apiUrl }),
     openAuditLog: (project, location, command) =>
       new JsonlAuditLog({
         dir: location.auditDir,

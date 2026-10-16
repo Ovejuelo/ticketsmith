@@ -18,6 +18,7 @@ import type { Services, TicketsConnection } from '#src/core/services/index.ts'
 import { FakeAgentRuntime } from '#tests/support/fake-agent-runtime.ts'
 import { FakeDatabases } from '#tests/support/fake-database.ts'
 import { FakeJiraDiscovery } from '#tests/support/fake-jira-discovery.ts'
+import { FakePullRequestHosts } from '#tests/support/fake-pull-request-host.ts'
 import { InMemoryAuditLog } from '#tests/support/in-memory-audit-log.ts'
 import { InMemorySecretStore } from '#tests/support/in-memory-secret-store.ts'
 import { InMemoryTicketSource } from '#tests/support/in-memory-ticket-source.ts'
@@ -65,6 +66,8 @@ export const testRepository = (
   branches: { fix: 'main', feature: 'main' },
   protectedBranches: ['main'],
   runtime: {},
+  allowCodeChanges: false,
+  branchPattern: 'fix/{key}-{slug}',
   ...overrides,
 })
 
@@ -87,6 +90,7 @@ export const testProject = (
   masking: { detectors: [...ALL_MASK_KINDS], custom: [], keepEmailDomains: true },
   agent: { maxBudgetUsd: 3, timeoutMinutes: 20 },
   changes: { maxRows: 100 },
+  code: { testTimeoutMinutes: 15 },
 })
 
 /** A CLI wired to fakes, a temp home dir and captured output. */
@@ -99,6 +103,7 @@ export class FakeCli {
   readonly audit = new InMemoryAuditLog()
   readonly databases = new FakeDatabases()
   readonly agent = new FakeAgentRuntime()
+  readonly pullRequests = new FakePullRequestHosts()
   stdout = ''
   stderr = ''
   readonly services: Services
@@ -124,6 +129,7 @@ export class FakeCli {
       },
       connectDatabase: (config, password) => this.databases.connect(config.name, password),
       agent: this.agent,
+      pullRequestHost: (type) => this.pullRequests.host(type),
       openAuditLog: () => this.audit,
     }
   }

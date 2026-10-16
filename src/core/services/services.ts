@@ -9,6 +9,7 @@ import type {
   ProjectStore,
   TicketSourceConfig,
 } from '../project/index.ts'
+import type { HostType, PullRequestHost } from '../repos/index.ts'
 import type { FoundSecret, SecretName, SecretStoreError } from '../secrets/index.ts'
 import type { JiraDiscovery, TicketSource, TicketSourceError } from '../tickets/index.ts'
 
@@ -36,6 +37,8 @@ export interface Services {
   connectTickets(config: TicketSourceConfig, token: string): TicketsConnection
   /** A new adapter (its own small pool); dispose it when done. */
   connectDatabase(config: DatabaseConfig, password: string): DatabaseAdapter
+  /** Opens pull requests on a host type (GitHub, Bitbucket Cloud); `apiUrl` for self-hosted ones. */
+  pullRequestHost(type: Exclude<HostType, 'none'>, apiUrl: string | undefined): PullRequestHost
   /** The agent that runs playbooks (Claude Code headless in v1). */
   readonly agent: AgentRuntime
   /** One audit file per run in the project's local/audit folder. */

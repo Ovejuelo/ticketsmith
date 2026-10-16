@@ -90,6 +90,12 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
     .option('--protected <branches>', 'repos: comma-separated protected branches')
     .option('--node <version>', 'repos: Node version (default: detected)')
     .option('--test-command <command>', 'repos: test command (default: detected)')
+    .option(
+      '--allow-code-changes',
+      'repos: let the agent change code in ticket worktrees (ticketsmith code)',
+    )
+    .option('--branch-pattern <pattern>', 'repos: ticket branch name, e.g. hotfix/{key}-{slug}')
+    .option('--pr-target <branch>', 'repos: pull request target (default: the fix branch)')
     .action(async (integration: Integration, flags: AddFlags, command: Command) => {
       const services = servicesFor(command)
       const { project, paths } = await openProject(services, globalOptions(command).project)

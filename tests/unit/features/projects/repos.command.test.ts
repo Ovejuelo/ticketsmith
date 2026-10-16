@@ -47,6 +47,8 @@ describe('ticketsmith project add|refresh|remove repos', () => {
         protectedBranches: ['master', 'develop'],
         runtime: { node: '20' },
         testCommand: 'npm test',
+        allowCodeChanges: false,
+        branchPattern: 'fix/{key}-{slug}',
       },
     ])
     expect(existsSync(join(paths.reposDir, 'api', 'src', 'server.js'))).toBe(true)
@@ -119,6 +121,8 @@ describe('ticketsmith project add|refresh|remove repos', () => {
             branches: { fix: 'master', feature: 'master' },
             protectedBranches: ['master'],
             runtime: {},
+            allowCodeChanges: false,
+            branchPattern: 'fix/{key}-{slug}',
           },
         ],
       },

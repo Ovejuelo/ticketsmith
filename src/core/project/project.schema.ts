@@ -150,6 +150,24 @@ export const GitRepositoryConfigSchema = z
     protectedBranches: z.array(BranchNameSchema).default([]),
     runtime: z.object({ node: z.string().min(1).optional() }).default({}),
     testCommand: z.string().min(1).optional(),
+    /** The agent may change code here, in a worktree per ticket (`ticketsmith code`); you approve pushes. */
+    allowCodeChanges: z.boolean().default(false),
+    /** Branch name for a ticket: {key} and {slug} (from the ticket summary) are replaced. */
+    branchPattern: z
+      .string()
+      .regex(/^[A-Za-z0-9._/{}-]+$/, 'Use letters, digits, ".", "_", "/", "-" and {key}/{slug}')
+      .refine((pattern) => pattern.includes('{key}'), 'The pattern must include {key}')
+      .default('fix/{key}-{slug}'),
+    /** Where pull requests go (default: the fix branch). */
+    prTarget: BranchNameSchema.optional(),
+    /** Pull request host; detected from the URL when absent (github.com, bitbucket.org). */
+    host: z
+      .object({
+        type: z.enum(['github', 'bitbucket-cloud', 'none']),
+        /** API base for self-hosted instances, e.g. https://github.acme.dev/api/v3 */
+        apiUrl: z.url({ protocol: /^https$/ }).optional(),
+      })
+      .optional(),
   })
   .transform((config) => ({
     ...config,
@@ -201,6 +219,11 @@ export const AgentConfigSchema = z
   .default({ maxBudgetUsd: 3, timeoutMinutes: 20 })
 export type AgentConfig = z.infer<typeof AgentConfigSchema>
 
+/** Limits for code changes (`ticketsmith code`). */
+export const CodeConfigSchema = z
+  .object({ testTimeoutMinutes: z.number().int().positive().max(120).default(15) })
+  .default({ testTimeoutMinutes: 15 })
+
 /** Limits for approved database changes. */
 export const ChangesConfigSchema = z
   .object({ maxRows: z.number().int().positive().max(10_000).default(100) })
@@ -213,6 +236,7 @@ export const ProjectSchema = z.object({
   masking: MaskingConfigSchema,
   agent: AgentConfigSchema,
   changes: ChangesConfigSchema,
+  code: CodeConfigSchema,
 })
 export type Project = z.infer<typeof ProjectSchema>
 
