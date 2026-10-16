@@ -135,6 +135,7 @@ describe('repository maps from real repositories', () => {
   it('maps a front-end: screens and outgoing calls', () => {
     expect(web.runtime).toBe('14')
     expect(web.testCommand).toBe('npm test')
+    expect(web.tests).toEqual({ count: 1, dirs: ['src/api'] })
     expect(web.stack[0]).toMatch(/React \^16\.14\.0.*React Router.*axios/)
     expect(web.screens).toEqual([
       { method: 'SCREEN', path: '/accounts/:id', file: 'src/App.jsx', line: 9 },

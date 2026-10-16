@@ -369,7 +369,16 @@ export const buildRepoMap = (
   commit: Commit,
   facts: RepoFacts,
 ): RepoMap => {
-  const { files, manifests, matches } = facts
+  const { files, manifests } = facts
+  // Mocks and fixtures in tests are not the application's endpoints, calls or data access.
+  const inCode = (list: readonly GrepMatch[]) => list.filter((match) => !TEST_FILE.test(match.path))
+  const matches = {
+    routes: inCode(facts.matches.routes),
+    screens: inCode(facts.matches.screens),
+    calls: inCode(facts.matches.calls),
+    models: inCode(facts.matches.models),
+    sql: inCode(facts.matches.sql),
+  }
   const extension = (file: string) => posix.extname(file).slice(1).toLowerCase()
   const languages = countBy(files.flatMap((file) => LANGUAGES[extension(file)] ?? []))
     .sort((a, b) => b[1] - a[1])
