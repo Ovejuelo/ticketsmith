@@ -179,16 +179,17 @@ Nothing requires a ticket source: a project with only repos (or only databases) 
 - Below the project's confidence threshold (default `0.75`), the user is asked and the decision is recorded as a case.
 
 ### 4.4 Agent and playbooks
-- `AgentRuntime.run({ ticket, playbook, tools, autonomyLevel, outputSchema })` → `Result<AgentOutput, AgentError>`.
-- **v1: `ClaudeCodeCliRuntime`**, which invokes Claude Code headless and uses your plan:
-  - `claude -p --output-format json --mcp-config <generated json> --strict-mcp-config`;
-  - native tools limited to `Read,Grep,Glob` (`--tools`) and allowed without prompts, together with `mcp__ticketsmith__*` (`--allowedTools`);
-  - `cwd` set to the repo clone, `--add-dir` for additional repos, and the playbook via `--append-system-prompt`;
-  - **verify the flags with `claude --help` for the installed version** when implementing the phase.
+- `AgentRuntime.run({ prompt, playbook, outputSchema, mcpConfig, model, maxBudgetUsd, timeoutMs })` → `Result<AgentRun, AgentError>` (`core/agent`, ADR 0022).
+- **v1: `ClaudeCodeCliRuntime`**, which invokes Claude Code headless and uses your plan (flags verified on Claude Code 2.1.301):
+  - `claude -p --output-format json --json-schema <schema> --append-system-prompt <playbook> --mcp-config <json> --strict-mcp-config --restricted --permission-prompts none --no-session-persistence --disable-slash-commands --max-budget-usd N`;
+  - **no built-in tools** (`--tools ""`): the agent reaches tickets, data, code and knowledge only through the Ticketsmith MCP tools (`--allowedTools mcp__ticketsmith__*`), so everything it sees is masked and audited, and ignored files such as `.env` are out of reach;
+  - it runs from an empty temporary folder (no project's `CLAUDE.md` or settings) and without `TICKETSMITH_*` environment variables.
+- **Tools served in-process:** for each run, Ticketsmith serves its MCP tools on `127.0.0.1` (random port, random bearer token, DNS-rebinding protection), so the session vault stays in the Ticketsmith process. The agent's answer is then **revealed** for local files (`out/`): real values replace placeholders, except `[SECRET_n]`, which stay masked. Knowledge written by the agent is never revealed, because it is shared.
+- **Playbooks:** built-in `bug` and `repo-analysis`; a project overrides or adds one with `knowledge/playbooks/<name>.md`.
 - **Later: `AgentSdkRuntime`** with `@anthropic-ai/claude-agent-sdk` and an API key, for unattended or CI runs.
 - The subscription token is **never** extracted for use from our own code; the subscription path only invokes the official `claude` binary. Confirm Anthropic's current terms.
 - Agent output is requested as JSON (zod schema → JSON Schema) and validated; if invalid, it retries once with the error and then reports it.
-- Per-run limits: max turns, total timeout and token/cost budget, configurable per project.
+- Per-run limits in `project.yaml` (`agent.maxBudgetUsd`, default 3; `agent.timeoutMinutes`, default 20; optional `agent.model`); `process --budget` and `--model` override them. Claude Code has no max-turns flag and checks the budget between turns, so a run can end slightly above it.
 
 ### 4.5 MCP server (`ticketsmith mcp`)
 v1 tools, all read-only:
@@ -202,7 +203,7 @@ v1 tools, all read-only:
 | `db_select_group` | The same guarded `SELECT` on every database of a group (e.g. find the pod holding an account) | Same as `db_select`; failures per database reported without hiding the rest |
 | `repo_list` | Repositories, base branches, clone commit, runtime, test command, map file | — |
 | `repo_files` / `repo_search` / `repo_read` | List tracked files (glob), `git grep` across repositories, read a file with line numbers, at any ref | Tracked content only (git objects); refs and paths validated; masked |
-| `knowledge_search` | Searches playbooks, notes and cases | — |
+| `knowledge_read` / `knowledge_search` | Read a knowledge file (`brief.md` first) / search all of them (file:line) | `.md` inside `knowledge/` only (symlinks resolved); content already masked |
 
 Every tool call is recorded in the audit log.
 
@@ -230,6 +231,8 @@ Every tool call is recorded in the audit log.
 - Investigates the repos with `Read/Grep/Glob` and queries the DB with `db_select` when needed.
 - Output: `analysis.md` (probable cause, `file:line` evidence, confidence level, next steps) and `jira_comment.md`.
 - Repos are analyzed on **dedicated clones** (see §4.11) so the user's own working copies are never touched. At L3 the agent may fix the bug in a per-ticket worktree (§4.9).
+
+**Phase 6 (`ticketsmith process <KEY>` / `--next`):** the `bug` playbook (or `--playbook <name>`) runs with every tool the project's integrations allow and writes `out/<KEY>/ticket.md`, `ticket.json`, `analysis.md` (summary, probable cause, confidence, evidence, next steps, open questions), `jira_comment.md` (to paste by hand: posting is L2) and `run.json` (cost, turns, duration, tool calls; no content). `project refresh repos --deep` has the agent write `knowledge/repos/<name>.analysis.md` (modules, flows, business rules, data model, risks, glossary) once per commit.
 
 ### 4.9 Autonomy levels
 

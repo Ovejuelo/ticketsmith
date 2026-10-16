@@ -4,7 +4,7 @@ Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud a
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.5. Tickets (JIRA Cloud), database reads (MySQL 8) and code reading across your repositories work today. An end-to-end agent and approved writes are next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.6. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories and end-to-end ticket investigation (`ticketsmith process`) work today. Approved writes and code changes are next; see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -61,6 +61,9 @@ ticketsmith list --limit 20           # prioritized open tickets
 ticketsmith show OPS-123              # ticket as Markdown (--json, --out, --mask)
 ticketsmith db ask "SELECT id, email FROM users WHERE id = 1" --db shard1
 ticketsmith db ask "SELECT id FROM accounts WHERE email = 'x@acme.com'" --group shards
+ticketsmith process OPS-123           # the agent investigates: out/OPS-123/analysis.md + jira_comment.md
+ticketsmith process --next            # the next ticket of the JQL without an analysis
+ticketsmith project refresh repos --deep  # the agent writes knowledge/repos/<name>.analysis.md
 ticketsmith mcp                       # the MCP server (the plugin runs it for you)
 ```
 
@@ -76,8 +79,13 @@ Global options: `--project <name>` (or `TICKETSMITH_PROJECT`), `--json`, `--verb
 | `db_select_group` | databases | The same `SELECT` on every database of a group, e.g. to find which one holds an account |
 | `repo_list` | repos | Repositories, base branches, the commit each clone is at, runtime, test command and map |
 | `repo_files`, `repo_search`, `repo_read` | repos | List tracked files, search code across repositories (`git grep`), read a file with line numbers, at any branch |
+| `knowledge_read`, `knowledge_search` | — | The project brief, repository maps and analyses, database schemas and playbooks |
 
 Tools only appear when the project has the integration they need. Without the plugin, `ticketsmith mcp setup` prints the `claude mcp add` command to register the server yourself.
+
+### Investigating a ticket end to end
+
+`ticketsmith process <KEY>` runs Claude Code headless (your own Claude Code login) with the `bug` playbook and **only Ticketsmith's tools**: no shell, no file access, nothing that writes. Everything the agent reads is masked; when it finishes, the real values are put back in your local copy of its answer (secrets stay masked). It writes `out/<KEY>/analysis.md` (probable cause, evidence with `repo/file:line` and queries, confidence, next steps) and `jira_comment.md`, which you review and paste yourself. Limits live in `project.yaml` (`agent.maxBudgetUsd`, default $3; `agent.timeoutMinutes`, default 20); `--budget` and `--model` override them. Add your own playbooks as `knowledge/playbooks/<name>.md` and use them with `--playbook <name>`.
 
 ### JIRA token
 

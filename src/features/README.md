@@ -9,6 +9,8 @@
 | `tickets/` | `list`, `show` | `jira_get_issue`, `jira_search` |
 | `databases/` | `db ask` | `db_select`, `db_select_group`, `db_schema` |
 | `repos/` | — | `repo_list`, `repo_files`, `repo_search`, `repo_read` |
+| `knowledge/` | — | `knowledge_read`, `knowledge_search` |
+| `process/` | `process <KEY>`, `process --next` | — |
 | `mcp/` | `mcp`, `mcp setup` | — |
 
 Rules: a feature never imports another feature (shared code goes to `core/`), and it imports core modules only through their `index.ts`. How to add one: [docs/guides/adding-a-feature.md](../../docs/guides/adding-a-feature.md).

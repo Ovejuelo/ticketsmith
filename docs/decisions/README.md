@@ -27,3 +27,4 @@ Template: `# NNNN. Title` · **Status** · **Context** (why it came up) · **Dec
 | [0019](0019-two-layer-read-guard.md) | Two-layer read guard that executes the regenerated SQL |
 | [0020](0020-npm-and-plugin-marketplace.md) | Distribution through npm and a Claude Code plugin marketplace |
 | [0021](0021-repositories-read-from-git-objects.md) | Repositories: dedicated clones, reads from git objects, deterministic maps |
+| [0022](0022-agent-runtime-mcp-only.md) | Agent runs: Claude Code headless with only Ticketsmith's tools, served in-process |

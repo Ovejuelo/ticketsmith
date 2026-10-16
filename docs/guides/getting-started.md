@@ -63,6 +63,13 @@ Open Claude Code, run `/mcp` and confirm that `ticketsmith` is connected, then a
 - "Which database holds the account of the customer in OPS-123?"
 - "What are the open incidents this week?"
 
+Or let Ticketsmith drive the agent itself, from the terminal:
+
+```sh
+ticketsmith process OPS-123          # writes out/OPS-123/analysis.md and jira_comment.md
+ticketsmith project refresh repos --deep   # once: the agent studies each repository
+```
+
 The MCP server serves the **active project** (`ticketsmith project use <name>` changes it).
 
 ## Staying up to date

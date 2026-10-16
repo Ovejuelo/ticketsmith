@@ -14,11 +14,11 @@ flowchart LR
   end
   bootstrap --> features
   subgraph features[features/ — what Ticketsmith does]
-    projects & doctor & tickets & dbs[databases] & repos & mcpf[mcp]
+    projects & doctor & tickets & process & dbs[databases] & repos & know[knowledge] & mcpf[mcp]
   end
   features --> core
   subgraph core[core/ — reusable building blocks]
-    project & secrets & tix[tickets] & dbk[database] & repok[repos] & security & storage & knowledge & audit & output & clik[cli] & mcpk[mcp] & services & feature
+    project & secrets & tix[tickets] & dbk[database] & repok[repos] & agent & security & storage & knowledge & audit & output & clik[cli] & mcpk[mcp] & services & feature
   end
   core --> kernel[core/kernel — Result, errors, logger]
 ```
@@ -45,16 +45,20 @@ src/
 │   ├── composition-root.ts       the only place that instantiates providers (JIRA, keychain…)
 │   ├── features.ts               the list of features — add a feature here
 │   ├── cli.ts                    builds the commander program from every feature's commands
-│   └── mcp-server.ts             registers every feature's tools; masks and audits all calls
+│   ├── mcp-server.ts             registers every feature's tools; masks and audits all calls
+│   └── tool-session.ts           one tool session per project: stdio for `mcp`, local HTTP for agent runs
 ├── features/                     one folder per capability (see features/README.md)
 │   ├── projects/                 project init|status|refresh|add|remove|list|use|show|link|export|import, jira discover
 │   ├── doctor/                   doctor
 │   ├── tickets/                  list, show + MCP tools jira_get_issue, jira_search
 │   ├── databases/                db ask + MCP tools db_select, db_select_group, db_schema
 │   ├── repos/                    MCP tools repo_list, repo_files, repo_search, repo_read
+│   ├── knowledge/                MCP tools knowledge_read, knowledge_search
+│   ├── process/                  process <KEY> | --next: the agent investigates a ticket
 │   └── mcp/                      mcp (serve), mcp setup
 └── core/                         shared building blocks (see core/README.md)
     ├── kernel/                   Result, AppError, logger
+    ├── agent/                    AgentRuntime port, Claude Code headless provider, playbooks, output schemas
     ├── project/                  Project model (optional integrations), project.yaml store, paths, profile migration
     ├── secrets/                  SecretStore port + keychain/env providers
     ├── storage/                  per-project SQLite (node:sqlite): onboarding steps, investigated catalog
@@ -141,6 +145,9 @@ Providers live in `providers/<vendor-or-tech>/` (`jira-cloud`, `keyring`, `env`)
 
 **Onboarding** — `ticketsmith project init`:
 `features/projects/init.command.ts` → configure integrations (`ticket-source-setup.ts`) → `onboarding.ts` runs each integration's investigator (`investigate-tickets.ts`), recording steps in `core/storage` → masked files via `core/knowledge` → `knowledge/brief.md`.
+
+**Agent** — `ticketsmith process OPS-1`:
+`features/process/process.command.ts` → `run-ticket.ts` → `CommandDeps.startAgentToolServer` (`bootstrap/tool-session.ts`: the project's tools on 127.0.0.1 with a per-run token, vault in this process) → `core/agent` `runStructured` → `Services.agent` (`ClaudeCodeCliRuntime`: `claude -p` with only those MCP tools) → validated answer → `vault.reveal` → `out/OPS-1/`.
 
 **MCP** — Claude calls `jira_search`:
 Claude Code → `ticketsmith mcp` → `bootstrap/mcp-server.ts` → `features/tickets/search.tool.ts` with a `ToolContext` (placeholders resolved by the session vault) → `TicketSource` → result masked by the vault → audited → back to Claude.
