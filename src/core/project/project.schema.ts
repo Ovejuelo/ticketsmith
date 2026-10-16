@@ -227,6 +227,11 @@ export const AgentConfigSchema = z
   .default({ maxBudgetUsd: 3, timeoutMinutes: 20 })
 export type AgentConfig = z.infer<typeof AgentConfigSchema>
 
+/** Classification (rules first, then a short LLM run when they are unsure). */
+export const ClassificationConfigSchema = z
+  .object({ maxBudgetUsd: z.number().positive().max(5).default(0.3) })
+  .default({ maxBudgetUsd: 0.3 })
+
 /** Limits for code changes (`ticketsmith code`). */
 export const CodeConfigSchema = z
   .object({ testTimeoutMinutes: z.number().int().positive().max(120).default(15) })
@@ -245,6 +250,7 @@ export const ProjectSchema = z.object({
   agent: AgentConfigSchema,
   changes: ChangesConfigSchema,
   code: CodeConfigSchema,
+  classification: ClassificationConfigSchema,
 })
 export type Project = z.infer<typeof ProjectSchema>
 

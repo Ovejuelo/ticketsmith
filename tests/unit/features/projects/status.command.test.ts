@@ -39,7 +39,7 @@ describe('ticketsmith project status', () => {
         { integration: 'databases', configured: false },
         { integration: 'repos', configured: false },
       ],
-      knowledge: ['brief.md', 'tickets/jira.md'],
+      knowledge: ['brief.md', 'ticket-types.md', 'tickets/jira.md'],
     })
   })
 })

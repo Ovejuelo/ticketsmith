@@ -92,6 +92,7 @@ export const testProject = (
   agent: { maxBudgetUsd: 3, timeoutMinutes: 20 },
   changes: { maxRows: 100 },
   code: { testTimeoutMinutes: 15 },
+  classification: { maxBudgetUsd: 0.3 },
 })
 
 /** A CLI wired to fakes, a temp home dir and captured output. */

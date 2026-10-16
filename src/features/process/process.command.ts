@@ -1,5 +1,11 @@
 import { Command } from 'commander'
 import {
+  CLASSIFY_TOOLS,
+  loadTicketTypes,
+  resolveClassification,
+  TICKET_TYPES_FILE,
+} from '../../core/classification/index.ts'
+import {
   type CommandDeps,
   fail,
   globalOptions,
@@ -7,12 +13,17 @@ import {
   orFail,
   requireTickets,
 } from '../../core/cli/index.ts'
-import { defaultProjectJql, TicketKeySchema } from '../../core/tickets/index.ts'
+import { reviewRun } from '../../core/knowledge/index.ts'
+import {
+  defaultProjectJql,
+  describeTicketSourceError,
+  TicketKeySchema,
+} from '../../core/tickets/index.ts'
 import { nextUnprocessed, processTicket } from './run-ticket.ts'
 
 type ProcessFlags = {
   readonly next: boolean
-  readonly playbook: string
+  readonly playbook?: string
   readonly model?: string
   readonly budget?: number
 }
@@ -35,7 +46,10 @@ export const processCommand = ({ io, servicesFor, startAgentToolServer }: Comman
     .description('Investigate a ticket with the agent and write analysis.md and jira_comment.md')
     .argument('[key]', 'ticket key, e.g. OPS-123')
     .option('--next', "the first ticket of the project's JQL without an analysis yet", false)
-    .option('--playbook <name>', 'playbook: knowledge/playbooks/<name>.md or built-in', 'bug')
+    .option(
+      '--playbook <name>',
+      'playbook: knowledge/playbooks/<name>.md or built-in (default: from the classification)',
+    )
     .option('--model <model>', 'Claude model (default: agent.model or your Claude Code default)')
     .option('--budget <usd>', 'maximum spend for this run, in US dollars', parseBudget)
     .action(async (rawKey: string | undefined, flags: ProcessFlags, command: Command) => {
@@ -62,9 +76,43 @@ export const processCommand = ({ io, servicesFor, startAgentToolServer }: Comman
       const parsed = TicketKeySchema.safeParse(key)
       if (!parsed.success) fail(`Invalid ticket key "${rawKey}". Expected PROJECT-123.`)
 
+      let playbook = flags.playbook
+      if (playbook === undefined) {
+        const types = orFail(await loadTicketTypes(opened.paths.knowledgeDir), String)
+        if (types === null) {
+          io.err(
+            `No knowledge/${TICKET_TYPES_FILE} yet: using the bug playbook (draft the types with \`ticketsmith project refresh tickets\`).\n`,
+          )
+          playbook = 'bug'
+        } else {
+          const ticket = orFail(
+            await tickets.source.getTicket(parsed.data),
+            describeTicketSourceError,
+          )
+          const { classification } = orFail(
+            await resolveClassification(services, opened, ticket, {
+              interactive: io.interactive,
+              llm: true,
+              startToolServer: () =>
+                startAgentToolServer(command, { auditCommand: 'classify', only: CLASSIFY_TOOLS }),
+            }),
+            String,
+          )
+          io.err(
+            `Classified as ${classification.type} (${classification.confidence}, by ${classification.source}).\n`,
+          )
+          if (classification.route === 'code' || classification.route === 'feature') {
+            io.out(
+              `${parsed.data} is ${classification.type}: that changes code, which you start yourself with \`ticketsmith ${classification.route} ${parsed.data}\`.\n`,
+            )
+            return
+          }
+          playbook = classification.playbook ?? 'bug'
+        }
+      }
       const budget = flags.budget ?? opened.project.agent.maxBudgetUsd
       io.err(
-        `Investigating ${parsed.data} with Claude (playbook ${flags.playbook}, budget $${budget.toFixed(2)}, up to ${opened.project.agent.timeoutMinutes} min)…\n`,
+        `Investigating ${parsed.data} with Claude (playbook ${playbook}, budget $${budget.toFixed(2)}, up to ${opened.project.agent.timeoutMinutes} min)…\n`,
       )
       const result = orFail(
         await processTicket(
@@ -72,7 +120,7 @@ export const processCommand = ({ io, servicesFor, startAgentToolServer }: Comman
           opened,
           tickets,
           parsed.data,
-          { playbook: flags.playbook, model: flags.model, budgetUsd: flags.budget },
+          { playbook: playbook, model: flags.model, budgetUsd: flags.budget },
           () => startAgentToolServer(command, { auditCommand: 'process' }),
         ),
         String,
@@ -104,4 +152,5 @@ export const processCommand = ({ io, servicesFor, startAgentToolServer }: Comman
           '',
         ].join('\n'),
       )
+      if (io.interactive) await reviewRun(opened, result.record.ticket, (text) => io.out(text))
     })

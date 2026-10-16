@@ -11,6 +11,7 @@ import {
   orFail,
   requireTickets,
 } from '../../core/cli/index.ts'
+import { reviewRun } from '../../core/knowledge/index.ts'
 import { TicketKeySchema } from '../../core/tickets/index.ts'
 import { terminalPushIo } from './code.command.ts'
 import { pushAndOpen } from './push.ts'
@@ -261,6 +262,7 @@ export const featureCommand = (deps: CommandDeps): Command => {
               await pushAndOpen(services, project, dir, key, undefined, terminalPushIo(io)),
               String,
             )
+            await reviewRun(project, key, (text) => io.out(text))
           },
         ),
     )

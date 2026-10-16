@@ -31,6 +31,10 @@ export type ProjectPaths = {
   readonly changesDir: string
   /** One git worktree per ticket and repository for code changes. */
   readonly worktreesDir: string
+  /** Anonymized evaluation cases, shared with the project (evals/<KEY>.yaml). */
+  readonly evalsDir: string
+  /** Results of eval runs (local). */
+  readonly evalRunsDir: string
 }
 
 type Env = Readonly<Record<string, string | undefined>>
@@ -68,5 +72,7 @@ export const projectPaths = (root: string): ProjectPaths => {
     reposDir: join(localDir, 'repos'),
     changesDir: join(localDir, 'changes'),
     worktreesDir: join(localDir, 'worktrees'),
+    evalsDir: join(root, 'evals'),
+    evalRunsDir: join(localDir, 'evals'),
   }
 }

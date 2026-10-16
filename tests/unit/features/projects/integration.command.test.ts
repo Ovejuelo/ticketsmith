@@ -39,7 +39,8 @@ describe('ticketsmith project add|remove', () => {
 
     expect((await load()).integrations).toEqual({})
     expect(cli.secrets.values.has('acme/jira-token')).toBe(false)
-    expect(await readdir(paths.value.knowledgeDir)).toEqual(['brief.md'])
+    // ticket-types.md is the team's curated classification: it stays.
+    expect(await readdir(paths.value.knowledgeDir)).toEqual(['brief.md', 'ticket-types.md'])
     await cli.run('--json', 'project', 'status')
     expect(JSON.parse(cli.stdout).integrations).toEqual([
       { integration: 'tickets', configured: false, investigation: null },

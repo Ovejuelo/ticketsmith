@@ -35,6 +35,8 @@ describe('projectPaths', () => {
       reposDir: '/p/acme/local/repos',
       changesDir: '/p/acme/local/changes',
       worktreesDir: '/p/acme/local/worktrees',
+      evalsDir: '/p/acme/evals',
+      evalRunsDir: '/p/acme/local/evals',
     })
   })
 })

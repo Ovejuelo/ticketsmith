@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+import { draftTicketTypes, TICKET_TYPES_FILE } from '../../core/classification/index.ts'
 import { type OpenedProject, requireTickets } from '../../core/cli/index.ts'
 import { err, ok, type Result } from '../../core/kernel/index.ts'
 import { writeKnowledge } from '../../core/knowledge/index.ts'
@@ -102,6 +105,16 @@ export const investigateTickets = async (
   const types = overview.value.issueTypes
     .filter((type) => !type.subtask)
     .map((type) => type.name.trim())
+  // A first ticket-types.md for classification; never overwrites the team's own.
+  if (!existsSync(join(opened.paths.knowledgeDir, TICKET_TYPES_FILE))) {
+    const drafted = await writeKnowledge(
+      opened.paths.knowledgeDir,
+      TICKET_TYPES_FILE,
+      draftTicketTypes(types),
+      opened.project.masking,
+    )
+    if (!drafted.ok) return err(drafted.error.message)
+  }
   return ok({
     summary: `JIRA project ${overview.value.key} (${overview.value.name}): ${types.length} issue types (${types.join(', ')})`,
   })

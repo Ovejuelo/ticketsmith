@@ -11,6 +11,7 @@ import {
   orFail,
   requireTickets,
 } from '../../core/cli/index.ts'
+import { reviewRun } from '../../core/knowledge/index.ts'
 import { removeWorktree, worktreeDir } from '../../core/repos/index.ts'
 import { TicketKeySchema } from '../../core/tickets/index.ts'
 import { type PushIo, pushAndOpen } from './push.ts'
@@ -216,6 +217,7 @@ export const codeCommand = (deps: CommandDeps): Command => {
         ),
         String,
       )
+      await reviewRun(opened, key, (text) => io.out(text))
     })
     .addCommand(pushCommand(deps))
     .addCommand(statusCommand(deps))
