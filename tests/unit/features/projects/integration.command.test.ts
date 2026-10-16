@@ -96,6 +96,7 @@ describe('ticketsmith project add|remove databases', () => {
         user: 'reader',
         group: 'shards',
         ssl: false,
+        allowChanges: false,
       },
     ])
     expect(cli.databases.connections[0]).toEqual({ name: 'shard1', password: 'pw1' })

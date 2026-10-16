@@ -1,4 +1,4 @@
-import type { DatabaseError } from './database-adapter.port.ts'
+import type { ChangeError, DatabaseError } from './database-adapter.port.ts'
 
 export const describeDatabaseError = (error: DatabaseError): string => {
   switch (error.kind) {
@@ -14,3 +14,8 @@ export const describeDatabaseError = (error: DatabaseError): string => {
       return `Query failed on "${error.database}": ${error.message}`
   }
 }
+
+export const describeChangeError = (error: ChangeError): string =>
+  error.kind === 'row-mismatch'
+    ? `The change on "${error.database}" affected ${error.actual} rows instead of the ${error.expected} approved, so it was rolled back. Nothing changed.`
+    : describeDatabaseError(error)

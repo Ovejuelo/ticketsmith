@@ -1,11 +1,14 @@
 import type {
+  ApprovedChange,
+  ChangeError,
+  ChangeOutcome,
   DatabaseAdapter,
   DatabaseError,
   DatabaseSchema,
   GuardedQuery,
   QueryResult,
 } from '#src/core/database/index.ts'
-import { ok, type Result } from '#src/core/kernel/index.ts'
+import { err, ok, type Result } from '#src/core/kernel/index.ts'
 
 export const emptyResult: QueryResult = { columns: [], rows: [], truncated: false, elapsedMs: 1 }
 
@@ -20,6 +23,11 @@ export class FakeDatabaseAdapter implements DatabaseAdapter {
   introspections = 0
   answer: (sql: string) => Result<QueryResult, DatabaseError> = () => ok(emptyResult)
   disposed = false
+  usesIndex = true
+  readonly executed: string[] = []
+  /** Affected rows MySQL would report (default: what the approval expects). */
+  affectedRows: ((approved: ApprovedChange) => number) | null = null
+  insertId: number | null = null
 
   constructor(name: string) {
     this.name = name
@@ -38,6 +46,23 @@ export class FakeDatabaseAdapter implements DatabaseAdapter {
   }
   async accountCanWrite() {
     return ok(this.canWrite)
+  }
+  async explain(query: GuardedQuery) {
+    this.queries.push(`EXPLAIN ${query.sql}`)
+    return ok({ usesIndex: this.usesIndex })
+  }
+  async executeChange(approved: ApprovedChange): Promise<Result<ChangeOutcome, ChangeError>> {
+    const affectedRows = this.affectedRows?.(approved) ?? approved.expectedRows
+    if (affectedRows !== approved.expectedRows) {
+      return err({
+        kind: 'row-mismatch',
+        database: this.name,
+        expected: approved.expectedRows,
+        actual: affectedRows,
+      })
+    }
+    this.executed.push(approved.change.sql)
+    return ok({ affectedRows, insertId: this.insertId })
   }
   async [Symbol.asyncDispose]() {
     this.disposed = true

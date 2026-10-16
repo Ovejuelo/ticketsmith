@@ -2,7 +2,14 @@ import { createPool } from 'mysql2/promise'
 import { z } from 'zod'
 import { err, type Logger, ok, type Result } from '../../../kernel/index.ts'
 import type { DatabaseSchema, TableInfo } from '../../database.schema.ts'
-import type { DatabaseAdapter, DatabaseError, QueryResult } from '../../database-adapter.port.ts'
+import type {
+  ApprovedChange,
+  ChangeError,
+  ChangeOutcome,
+  DatabaseAdapter,
+  DatabaseError,
+  QueryResult,
+} from '../../database-adapter.port.ts'
 import type { GuardedQuery } from '../../readonly-guard.ts'
 
 /** The slice of a mysql2 pool connection this adapter uses; tests provide a fake. */
@@ -118,6 +125,64 @@ export class MysqlDatabaseAdapter implements DatabaseAdapter {
       })
     }
     return ok({ tables: assembleTables(parsed.data) })
+  }
+
+  async explain(
+    query: GuardedQuery,
+  ): Promise<Result<{ readonly usesIndex: boolean }, DatabaseError>> {
+    const result = await this.#readOnly((run) => run(`EXPLAIN ${query.sql}`))
+    if (!result.ok) return result
+    const [rows] = result.value
+    const steps = Array.isArray(rows) ? (rows as Record<string, unknown>[]) : []
+    return ok({ usesIndex: steps.length > 0 && steps.every((step) => step['key'] != null) })
+  }
+
+  /**
+   * The only write path: one approved statement in a READ WRITE transaction, committed only when
+   * MySQL reports the expected number of affected rows (mysql2 counts matched rows), otherwise
+   * rolled back. The session is put back to read-only before the connection returns to the pool.
+   */
+  async executeChange(approved: ApprovedChange): Promise<Result<ChangeOutcome, ChangeError>> {
+    let connection: MysqlConnection
+    try {
+      connection = await this.#source.getConnection()
+    } catch (error) {
+      return err(this.#mapError(error))
+    }
+    const run = (sql: string) =>
+      connection.query({ sql, timeout: this.#timeoutMs + CLIENT_TIMEOUT_MARGIN_MS })
+    let open = false
+    try {
+      await run('SET SESSION transaction_read_only = OFF')
+      await run('START TRANSACTION READ WRITE')
+      open = true
+      const [header] = await run(approved.change.sql)
+      const affectedRows = Number(field(header, 'affectedRows') ?? -1)
+      if (affectedRows !== approved.expectedRows) {
+        await run('ROLLBACK')
+        open = false
+        return err({
+          kind: 'row-mismatch',
+          database: this.name,
+          expected: approved.expectedRows,
+          actual: affectedRows,
+        })
+      }
+      await run('COMMIT')
+      open = false
+      const insertId = Number(field(header, 'insertId') ?? 0)
+      return ok({ affectedRows, insertId: insertId > 0 ? insertId : null })
+    } catch (error) {
+      return err(this.#mapError(error))
+    } finally {
+      try {
+        if (open) await run('ROLLBACK')
+        await run('SET SESSION transaction_read_only = ON')
+      } catch (error) {
+        this.#logger.warn({ database: this.name, error: String(error) }, 'could not reset session')
+      }
+      connection.release()
+    }
   }
 
   async [Symbol.asyncDispose](): Promise<void> {

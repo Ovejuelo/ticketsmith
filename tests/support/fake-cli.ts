@@ -45,6 +45,7 @@ export const testDatabase = (
   database: 'app',
   user: 'reader',
   ssl: false,
+  allowChanges: false,
   ...overrides,
 })
 
@@ -85,6 +86,7 @@ export const testProject = (
   integrations: tickets === null ? {} : { tickets: testJira(tickets) },
   masking: { detectors: [...ALL_MASK_KINDS], custom: [], keepEmailDomains: true },
   agent: { maxBudgetUsd: 3, timeoutMinutes: 20 },
+  changes: { maxRows: 100 },
 })
 
 /** A CLI wired to fakes, a temp home dir and captured output. */

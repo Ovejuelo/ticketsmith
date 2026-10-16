@@ -75,6 +75,8 @@ export const MysqlDatabaseConfigSchema = z.object({
   /** Databases sharing one schema (e.g. billing's shards) share a group. */
   group: DatabaseNameSchema.optional(),
   ssl: z.boolean().default(false),
+  /** The agent may propose changes here (db_propose_change); a human still approves each one. */
+  allowChanges: z.boolean().default(false),
 })
 
 export const DatabaseConfigSchema = z.discriminatedUnion('type', [MysqlDatabaseConfigSchema])
@@ -199,12 +201,18 @@ export const AgentConfigSchema = z
   .default({ maxBudgetUsd: 3, timeoutMinutes: 20 })
 export type AgentConfig = z.infer<typeof AgentConfigSchema>
 
+/** Limits for approved database changes. */
+export const ChangesConfigSchema = z
+  .object({ maxRows: z.number().int().positive().max(10_000).default(100) })
+  .default({ maxRows: 100 })
+
 export const ProjectSchema = z.object({
   version: z.literal(2),
   name: ProjectNameSchema,
   integrations: IntegrationsSchema.default({}),
   masking: MaskingConfigSchema,
   agent: AgentConfigSchema,
+  changes: ChangesConfigSchema,
 })
 export type Project = z.infer<typeof ProjectSchema>
 
