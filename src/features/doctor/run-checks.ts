@@ -5,9 +5,17 @@ import {
   type Project,
   type TicketSourceConfig,
 } from '../../core/project/index.ts'
+import {
+  isCloned,
+  projectRepositories,
+  type Repository,
+  remoteBranches,
+  resolveCommit,
+} from '../../core/repos/index.ts'
 import { describeSecretError } from '../../core/secrets/index.ts'
 import { DatabaseConnections, type Services } from '../../core/services/index.ts'
 import { describeTicketSourceError, type TicketSourceError } from '../../core/tickets/index.ts'
+import { checkNodeRuntime, fnmNodeVersions } from './node-runtime.ts'
 
 export type CheckStatus = 'ok' | 'warn' | 'fail' | 'skip'
 export type Check = { readonly name: string; readonly status: CheckStatus; readonly detail: string }
@@ -55,6 +63,13 @@ export const runChecks = async (
     add('databases', 'skip', 'Not configured (`ticketsmith project add databases`)')
   } else {
     await checkDatabases(services, project.value, add)
+  }
+  if (project.value.integrations.repos === undefined) {
+    add('repos', 'skip', 'Not configured (`ticketsmith project add repos`)')
+  } else {
+    const paths = await services.projects.locate(name.value)
+    if (!paths.ok) add('repos', 'fail', describeProjectError(paths.error))
+    else await checkRepos(projectRepositories(project.value, paths.value), add)
   }
   return checks
 }
@@ -158,5 +173,44 @@ const checkDatabases = async (
     }
   } finally {
     await connections[Symbol.asyncDispose]()
+  }
+}
+
+/** Remote access with the user's git credentials, base branches, the clone and the runtime. */
+const checkRepos = async (repositories: readonly Repository[], add: AddCheck): Promise<void> => {
+  let installed: readonly string[] | null | undefined
+  for (const { config, dir } of repositories) {
+    const name = `repo ${config.name}`
+    const branches = await remoteBranches(config.url)
+    if (!branches.ok) {
+      add(name, 'fail', `Cannot reach ${config.url}: ${branches.error}`)
+    } else {
+      const missing = [config.branches.fix, config.branches.feature].filter(
+        (branch) => !branches.value.includes(branch),
+      )
+      if (missing.length > 0) {
+        add(
+          name,
+          'fail',
+          `Base branch(es) missing on the remote: ${[...new Set(missing)].join(', ')}`,
+        )
+      } else if (!isCloned(dir)) {
+        add(name, 'warn', 'Reachable, but not cloned yet: run `ticketsmith project refresh repos`')
+      } else {
+        const head = await resolveCommit(dir, 'HEAD')
+        add(
+          name,
+          'ok',
+          head.ok
+            ? `Reachable; clone at ${config.branches.fix} ${head.value.id.slice(0, 7)} (${head.value.date.slice(0, 10)})`
+            : `Reachable; clone unreadable: ${head.error}`,
+        )
+      }
+    }
+    if (config.runtime.node !== undefined) {
+      installed ??= await fnmNodeVersions()
+      const runtime = checkNodeRuntime(config.runtime.node, installed)
+      add(`${name} runtime`, runtime.status, runtime.detail)
+    }
   }
 }

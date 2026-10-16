@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { err, ok } from '#src/core/kernel/index.ts'
 import { runChecks } from '#src/features/doctor/run-checks.ts'
-import { FakeCli, testDatabase, testProject, withDatabases } from '#tests/support/fake-cli.ts'
+import {
+  FakeCli,
+  testDatabase,
+  testProject,
+  testRepository,
+  withDatabases,
+  withRepositories,
+} from '#tests/support/fake-cli.ts'
+import { TestRemote } from '#tests/support/git-repos.ts'
 import { InMemoryTicketSource } from '#tests/support/in-memory-ticket-source.ts'
 
 describe('doctor', () => {
@@ -31,6 +39,7 @@ describe('doctor', () => {
       jql: 'ok',
       board: 'ok',
       databases: 'skip',
+      repos: 'skip',
     })
     expect(await cli.run('doctor')).toBeNull()
   })
@@ -57,6 +66,7 @@ describe('doctor', () => {
         status: 'skip',
         detail: 'Not configured (`ticketsmith project add databases`)',
       },
+      { name: 'repos', status: 'skip', detail: 'Not configured (`ticketsmith project add repos`)' },
     ])
     expect(await cli.run('doctor')).toBeNull()
   })
@@ -91,5 +101,49 @@ describe('doctor', () => {
       ['db shard3', 'fail'],
     ])
     expect(checks.find((c) => c.name === 'db shard3')?.detail).toMatch(/Is the VPN or tunnel up/)
+  })
+})
+
+describe('runChecks: repositories', () => {
+  let cli: FakeCli
+  let remote: TestRemote
+  beforeEach(async () => {
+    cli = await FakeCli.create()
+    remote = new TestRemote({ fixture: 'api-express' })
+  })
+  afterEach(async () => {
+    remote[Symbol.dispose]()
+    await cli.cleanup()
+  })
+
+  it('checks remote access, base branches and the clone', async () => {
+    await cli.withProject(
+      withRepositories(testProject(null), [
+        testRepository('api', { url: remote.url }),
+        testRepository('gone', { url: 'file:///nonexistent/acme/gone' }),
+        testRepository('web', { url: remote.url, branches: { fix: 'master', feature: 'main' } }),
+      ]),
+    )
+    const before = await runChecks(cli.services, undefined)
+    expect(before.filter((check) => check.name.startsWith('repo '))).toEqual([
+      {
+        name: 'repo api',
+        status: 'warn',
+        detail: 'Reachable, but not cloned yet: run `ticketsmith project refresh repos`',
+      },
+      { name: 'repo gone', status: 'fail', detail: expect.stringContaining('Cannot reach') },
+      {
+        name: 'repo web',
+        status: 'fail',
+        detail: 'Base branch(es) missing on the remote: master',
+      },
+    ])
+
+    await cli.run('project', 'refresh', 'repos')
+    const after = await runChecks(cli.services, undefined)
+    expect(after.find((check) => check.name === 'repo api')).toMatchObject({
+      status: 'ok',
+      detail: expect.stringMatching(/^Reachable; clone at main [0-9a-f]{7} \(\d{4}-\d{2}-\d{2}\)$/),
+    })
   })
 })
