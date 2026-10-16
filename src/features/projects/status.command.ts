@@ -10,7 +10,7 @@ import {
   withProjectDatabase,
 } from '../../core/storage/index.ts'
 import { isGitRepository } from './git-repository.ts'
-import { readRepoStates } from './investigate-repos.ts'
+import { readRepoStates } from './repo-catalog.ts'
 
 type IntegrationStatus = {
   readonly integration: Integration

@@ -19,7 +19,16 @@ import {
 import type { Services } from '../../core/services/index.ts'
 import type { ProjectDatabase } from '../../core/storage/index.ts'
 import type { InvestigationOutcome } from './investigate-tickets.ts'
-import { type RepoMap, type RepoState, RepoStateSchema } from './repo-map.schema.ts'
+import { renderRepoAnalysis } from './repo-analysis.ts'
+import {
+  analysisFile,
+  CONNECTIONS_FILE,
+  REPOS_CATALOG,
+  REPOS_KNOWLEDGE_DIR,
+  readAnalyses,
+  readRepoStates,
+} from './repo-catalog.ts'
+import type { RepoMap, RepoState } from './repo-map.schema.ts'
 import {
   buildRepoMap,
   findConnections,
@@ -30,12 +39,6 @@ import {
   renderConnections,
   renderRepoMap,
 } from './repo-map.ts'
-
-export const REPOS_KNOWLEDGE_DIR = 'repos'
-/** Repository names start with a letter or digit, so this name never collides with a map. */
-export const CONNECTIONS_FILE = `${REPOS_KNOWLEDGE_DIR}/_connections.md`
-
-export const REPOS_CATALOG = { integration: 'repos', kind: 'repository' } as const
 
 const MAX_MATCHES_PER_CATEGORY = 2000
 
@@ -96,12 +99,6 @@ const mapRepository = async (
   )
 }
 
-/** The last synced state of each repository, from the local catalog. */
-export const readRepoStates = (db: ProjectDatabase): ReadonlyMap<string, RepoState> => {
-  const entries = db.catalog(REPOS_CATALOG.integration, REPOS_CATALOG.kind, RepoStateSchema)
-  return new Map(entries.ok ? entries.value.map((entry) => [entry.key, entry.data]) : [])
-}
-
 /**
  * Syncs every repository's dedicated clone (cloning it when missing, e.g. after `project link`)
  * and maps it into knowledge/repos/<name>.md. A repository whose commit did not move keeps its
@@ -160,6 +157,10 @@ export const investigateRepos = async (
   ])
   const connections = maps.length > 1 ? findConnections(maps) : []
   if (maps.length > 1) files.push([CONNECTIONS_FILE, renderConnections(maps, connections)])
+  // Deep analyses survive the rewrite while their repository is still configured.
+  for (const [name, stored] of readAnalyses(db)) {
+    if (states.has(name)) files.push([analysisFile(name), renderRepoAnalysis(name, stored)])
+  }
   for (const [file, content] of files) {
     const written = await writeKnowledge(
       opened.paths.knowledgeDir,

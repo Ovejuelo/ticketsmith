@@ -14,8 +14,9 @@ import {
   withProjectDatabase,
 } from '../../core/storage/index.ts'
 import { DATABASES_KNOWLEDGE_DIR, investigateDatabases } from './investigate-databases.ts'
-import { investigateRepos, REPOS_KNOWLEDGE_DIR } from './investigate-repos.ts'
+import { investigateRepos } from './investigate-repos.ts'
 import { investigateTickets, TICKETS_KNOWLEDGE_FILE } from './investigate-tickets.ts'
+import { REPOS_KNOWLEDGE_DIR } from './repo-catalog.ts'
 
 export const BRIEF_FILE = 'brief.md'
 

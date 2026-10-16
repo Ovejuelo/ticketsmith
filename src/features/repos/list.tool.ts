@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ok } from '../../core/kernel/index.ts'
@@ -39,6 +40,11 @@ export const listTool = defineTool({
           `- Runtime: ${config.runtime.node === undefined ? 'not set' : `Node ${config.runtime.node}`}`,
           `- Tests: ${config.testCommand === undefined ? 'not set' : `\`${config.testCommand}\``}`,
           `- Map: knowledge/repos/${config.name}.md`,
+          ...(existsSync(join(repos.value.knowledgeDir, 'repos', `${config.name}.analysis.md`))
+            ? [
+                `- Analysis: knowledge/repos/${config.name}.analysis.md (flows, business rules, risks)`,
+              ]
+            : []),
         ].join('\n')
       }),
     )
