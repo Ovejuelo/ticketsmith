@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, rename, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { z } from 'zod'
 import type { Paths } from './paths.ts'
-import { LegacyProfileSchema } from './project.schema.ts'
+import { LegacyProfileSchema, ProjectSchema } from './project.schema.ts'
 import type { ProjectStore } from './project-store.ts'
 
 export type MigrationReport = {
@@ -39,7 +39,9 @@ export const migrateLegacyProfiles = async (
     }
     const { name, tickets, masking } = legacy.data
     if (!(await store.exists(name))) {
-      const saved = await store.save({ version: 2, name, integrations: { tickets }, masking })
+      const saved = await store.save(
+        ProjectSchema.parse({ version: 2, name, integrations: { tickets }, masking }),
+      )
       if (!saved.ok) {
         failed.push({ file: path, reason: saved.error.kind })
         continue

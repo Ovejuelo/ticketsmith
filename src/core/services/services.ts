@@ -1,3 +1,4 @@
+import type { AgentRuntime } from '../agent/index.ts'
 import type { AuditLog } from '../audit/index.ts'
 import type { DatabaseAdapter } from '../database/index.ts'
 import type { Result } from '../kernel/index.ts'
@@ -35,6 +36,8 @@ export interface Services {
   connectTickets(config: TicketSourceConfig, token: string): TicketsConnection
   /** A new adapter (its own small pool); dispose it when done. */
   connectDatabase(config: DatabaseConfig, password: string): DatabaseAdapter
+  /** The agent that runs playbooks (Claude Code headless in v1). */
+  readonly agent: AgentRuntime
   /** One audit file per run in the project's local/audit folder. */
   openAuditLog(project: string, location: ProjectPaths, command: string): AuditLog
 }

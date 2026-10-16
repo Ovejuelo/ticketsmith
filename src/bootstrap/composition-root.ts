@@ -1,3 +1,4 @@
+import { ClaudeCodeCliRuntime } from '../core/agent/providers/claude-code/claude-code-cli-runtime.ts'
 import { JsonlAuditLog } from '../core/audit/index.ts'
 import type { DatabaseAdapter } from '../core/database/index.ts'
 import {
@@ -51,6 +52,7 @@ export const createServices = ({ env, home, logger }: ServicesOptions): Services
     connectTickets: (config, token) => connectors[config.type](config, token, logger),
     connectDatabase: (config, password) =>
       databaseConnectors[config.type](config, password, logger),
+    agent: new ClaudeCodeCliRuntime(),
     openAuditLog: (project, location, command) =>
       new JsonlAuditLog({
         dir: location.auditDir,

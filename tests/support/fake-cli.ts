@@ -15,6 +15,7 @@ import {
 } from '#src/core/project/index.ts'
 import { ALL_MASK_KINDS } from '#src/core/security/index.ts'
 import type { Services, TicketsConnection } from '#src/core/services/index.ts'
+import { FakeAgentRuntime } from '#tests/support/fake-agent-runtime.ts'
 import { FakeDatabases } from '#tests/support/fake-database.ts'
 import { FakeJiraDiscovery } from '#tests/support/fake-jira-discovery.ts'
 import { InMemoryAuditLog } from '#tests/support/in-memory-audit-log.ts'
@@ -83,6 +84,7 @@ export const testProject = (
   name,
   integrations: tickets === null ? {} : { tickets: testJira(tickets) },
   masking: { detectors: [...ALL_MASK_KINDS], custom: [], keepEmailDomains: true },
+  agent: { maxBudgetUsd: 3, timeoutMinutes: 20 },
 })
 
 /** A CLI wired to fakes, a temp home dir and captured output. */
@@ -94,6 +96,7 @@ export class FakeCli {
   readonly connections: { config: TicketSourceConfig; token: string }[] = []
   readonly audit = new InMemoryAuditLog()
   readonly databases = new FakeDatabases()
+  readonly agent = new FakeAgentRuntime()
   stdout = ''
   stderr = ''
   readonly services: Services
@@ -118,6 +121,7 @@ export class FakeCli {
         return { source: this.source, discovery: this.discovery }
       },
       connectDatabase: (config, password) => this.databases.connect(config.name, password),
+      agent: this.agent,
       openAuditLog: () => this.audit,
     }
   }

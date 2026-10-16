@@ -187,11 +187,24 @@ export type Integrations = z.infer<typeof IntegrationsSchema>
 export const INTEGRATIONS = ['tickets', 'databases', 'repos'] as const
 export type Integration = (typeof INTEGRATIONS)[number]
 
+/** Limits for agent runs (`process`, deep repository analysis). */
+export const AgentConfigSchema = z
+  .object({
+    /** A Claude Code model alias or name (default: the user's Claude Code default). */
+    model: z.string().min(1).optional(),
+    /** Per run; Claude Code checks it between turns, so a run can end slightly above it. */
+    maxBudgetUsd: z.number().positive().max(100).default(3),
+    timeoutMinutes: z.number().int().positive().max(240).default(20),
+  })
+  .default({ maxBudgetUsd: 3, timeoutMinutes: 20 })
+export type AgentConfig = z.infer<typeof AgentConfigSchema>
+
 export const ProjectSchema = z.object({
   version: z.literal(2),
   name: ProjectNameSchema,
   integrations: IntegrationsSchema.default({}),
   masking: MaskingConfigSchema,
+  agent: AgentConfigSchema,
 })
 export type Project = z.infer<typeof ProjectSchema>
 
