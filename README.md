@@ -4,7 +4,7 @@ Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud a
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.7. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`) and human-approved database changes work today. Code changes are next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.8. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes and code fixes with tests and pull requests (`ticketsmith code`) work today. New functionality with a design checkpoint is next; see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -41,7 +41,7 @@ Step by step on a new machine: [docs/guides/getting-started.md](docs/guides/gett
 | JIRA | A scoped, read-only API token. |
 | Database reads | Exactly one `SELECT`, parsed (never regex) and checked by a two-layer guard that rejects comment tricks and inspects the whole tree. Only the SQL regenerated from the validated tree runs, in a read-only session and transaction, with a time limit and a row limit, and it is always rolled back. This holds even for a write-capable account. |
 | Sensitive data | Emails, phones, tax ids, bank accounts, cards and secrets become placeholders such as `[EMAIL_1]@northwind.mx` inside the tools. Claude can pass them back in JQL or SQL and the server substitutes the real value, so the model never sees it. |
-| Writes | Database changes only on databases you mark `allowChanges`: the agent **proposes** one INSERT/UPDATE (no DELETE or DDL, ever), Ticketsmith validates it, counts the rows and prepares a rollback, and **you approve it in your terminal** by typing the database name. Later phases add JIRA comments and pull requests the same way. |
+| Writes | Code changes only in repositories you mark `allowCodeChanges`, in a worktree per ticket, pushed only after you say yes (never to protected branches). Database changes only on databases you mark `allowChanges`: the agent **proposes** one INSERT/UPDATE (no DELETE or DDL, ever), Ticketsmith validates it, counts the rows and prepares a rollback, and **you approve it in your terminal** by typing the database name. Later phases add JIRA comments and pull requests the same way. |
 | Audit | Every MCP call is logged locally, without its content. |
 
 Details: [requirements](docs/requirements.md) §2 and [ADR 0019](docs/decisions/0019-two-layer-read-guard.md).
@@ -95,6 +95,19 @@ Create an **API token with scopes** at https://id.atlassian.com/manage-profile/s
 ### Databases
 
 `project add databases` asks for each database's host, port, database name and user, and stores the password in the keychain (`TICKETSMITH_DB_<NAME>` for scripts). Databases that share a schema form a group: the schema is investigated once, and `db_select_group` can search all of them. VPNs and tunnels are up to you; `doctor` tells you which database is unreachable.
+
+### Fixing code
+
+Mark a repository with `allowCodeChanges: true` (or answer yes in `project add repos`) and run:
+
+```sh
+ticketsmith code OPS-123          # worktree + branch from the fix branch, the agent fixes and tests
+ticketsmith code push OPS-123     # asks per repository, pushes (never forced) and opens the PR
+ticketsmith code status           # worktrees, branches, tests, pull requests
+ticketsmith code discard OPS-123  # removes the worktrees and local branches
+```
+
+The agent edits only inside the ticket's worktrees and has no shell: it runs your configured `testCommand` through Ticketsmith, which runs the tests again itself before showing you the diff. Branches follow `branchPattern` (default `fix/{key}-{slug}`, e.g. `hotfix/{key}-{slug}`). Pull requests open through GitHub (or GitHub Enterprise with `host.apiUrl`) and Bitbucket Cloud with an API token stored in the keychain on first use; for any other host you get the link and the description to paste.
 
 ### Approved database changes
 

@@ -18,6 +18,7 @@ import { TestRemote } from '#tests/support/git-repos.ts'
 
 describe('normalizeRoute', () => {
   it.each([
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: a JS template literal as source text, on purpose
     ['/api/accounts/${id}', '/api/accounts/:param'],
     ['/api/accounts/:id/deactivate', '/api/accounts/:param/deactivate'],
     ['/users/{userId}', '/users/:param'],
@@ -141,9 +142,11 @@ describe('repository maps from real repositories', () => {
       { method: 'SCREEN', path: '/accounts/:id', file: 'src/App.jsx', line: 9 },
     ])
     expect(web.calls).toEqual([
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the call path as written in the fixture
       { method: 'GET', path: '/api/accounts/${id}', file: 'src/api/accounts.js', line: 3 },
       {
         method: 'POST',
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: the call path as written in the fixture
         path: '/api/accounts/${id}/deactivate',
         file: 'src/api/accounts.js',
         line: 5,

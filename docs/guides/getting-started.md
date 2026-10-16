@@ -68,6 +68,7 @@ Or let Ticketsmith drive the agent itself, from the terminal:
 ```sh
 ticketsmith process OPS-123          # writes out/OPS-123/analysis.md and jira_comment.md
 ticketsmith project refresh repos --deep   # once: the agent studies each repository
+ticketsmith code OPS-123             # fixes it in a worktree; asks before pushing and opening the PR
 ```
 
 The MCP server serves the **active project** (`ticketsmith project use <name>` changes it).
