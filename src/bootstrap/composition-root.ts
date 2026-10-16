@@ -1,0 +1,110 @@
+import { JsonlAuditLog } from '../core/audit/index.ts'
+import type { DatabaseAdapter } from '../core/database/index.ts'
+import {
+  createMysqlConnectionSource,
+  MysqlDatabaseAdapter,
+} from '../core/database/providers/mysql/index.ts'
+import { ConfigError, type Logger } from '../core/kernel/index.ts'
+import {
+  type DatabaseConfig,
+  type JiraCloudSourceConfig,
+  ProjectStore,
+  resolvePaths,
+  type TicketSourceConfig,
+} from '../core/project/index.ts'
+import { firstAvailable } from '../core/secrets/index.ts'
+import { EnvSecretStore } from '../core/secrets/providers/env/env-secret-store.ts'
+import { KeyringSecretStore } from '../core/secrets/providers/keyring/keyring-secret-store.ts'
+import type { Services, TicketsConnection } from '../core/services/index.ts'
+import {
+  apiBaseUrl,
+  type JiraAuth,
+  JiraCloudDiscovery,
+  JiraCloudTicketSource,
+  JiraHttpClient,
+  resolveCloudId,
+} from '../core/tickets/providers/jira-cloud/index.ts'
+
+/**
+ * The only place that instantiates providers and wires the object graph.
+ * Adding a ticket source = one provider folder + one entry in `connectors`.
+ */
+export type ServicesOptions = {
+  readonly env: Readonly<Record<string, string | undefined>>
+  readonly home: string
+  readonly logger: Logger
+}
+
+export const createServices = ({ env, home, logger }: ServicesOptions): Services => {
+  const paths = resolvePaths(env, home)
+  const keychain = new KeyringSecretStore()
+  // Environment first so CI and evals can override the keychain without touching it.
+  const secretStores = [new EnvSecretStore(env), keychain]
+
+  return {
+    paths,
+    projects: new ProjectStore(paths),
+    loadSecret: (project, name) => firstAvailable(secretStores, { project, name }),
+    saveSecret: (project, name, value) => keychain.set({ project, name }, value),
+    deleteSecret: (project, name) => keychain.delete({ project, name }),
+    resolveCloudId: (siteUrl) => resolveCloudId(siteUrl),
+    connectTickets: (config, token) => connectors[config.type](config, token, logger),
+    connectDatabase: (config, password) =>
+      databaseConnectors[config.type](config, password, logger),
+    openAuditLog: (project, location, command) =>
+      new JsonlAuditLog({
+        dir: location.auditDir,
+        command,
+        project,
+        onError: (error) => logger.warn({ error: String(error) }, 'audit write failed'),
+      }),
+  }
+}
+
+type Connector<T extends TicketSourceConfig['type']> = (
+  config: Extract<TicketSourceConfig, { type: T }>,
+  token: string,
+  logger: Logger,
+) => TicketsConnection
+
+const jiraAuth = (config: JiraCloudSourceConfig): JiraAuth => {
+  if (config.auth === 'classic') return { kind: 'classic', siteUrl: config.siteUrl }
+  if (config.cloudId === undefined) {
+    throw new ConfigError('Scoped JIRA tokens need a cloudId; run `ticketsmith init` again.')
+  }
+  return { kind: 'scoped', cloudId: config.cloudId }
+}
+
+const connectors: { readonly [T in TicketSourceConfig['type']]: Connector<T> } = {
+  'jira-cloud': (config, token, logger) => {
+    const client = new JiraHttpClient({
+      baseUrl: apiBaseUrl(jiraAuth(config)),
+      email: config.email,
+      token,
+      logger,
+    })
+    return {
+      source: new JiraCloudTicketSource(client, {
+        siteUrl: config.siteUrl,
+        customFields: config.customFields,
+      }),
+      discovery: new JiraCloudDiscovery(client),
+    }
+  },
+}
+
+type DatabaseConnector<T extends DatabaseConfig['type']> = (
+  config: Extract<DatabaseConfig, { type: T }>,
+  password: string,
+  logger: Logger,
+) => DatabaseAdapter
+
+/** Adding a database engine = one provider folder + one entry here. */
+const databaseConnectors: { readonly [T in DatabaseConfig['type']]: DatabaseConnector<T> } = {
+  mysql: (config, password, logger) =>
+    new MysqlDatabaseAdapter({
+      name: config.name,
+      source: createMysqlConnectionSource({ ...config, password }),
+      logger,
+    }),
+}

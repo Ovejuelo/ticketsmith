@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.log
+
+# Local data never belongs in this repo (projects live in ~/.local/share/ticketsmith).
+# Anchored to the root on purpose: unanchored patterns like `audit/` also ignored source
+# folders such as src/core/audit/.
+.env
+.env.*
+/out/
+/logs/
+/audit/
+/profiles/
+
+.DS_Store
+
+# List of private terms checked by scripts/guard-private-terms.ts (private by nature)
+.private-terms

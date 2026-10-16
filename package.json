@@ -1,0 +1,86 @@
+{
+  "name": "ticketsmith",
+  "version": "0.4.0",
+  "description": "Turns tickets into prepared work with Claude: an MCP server and CLI with guarded, masked access to JIRA and your databases.",
+  "keywords": [
+    "jira",
+    "mcp",
+    "claude",
+    "claude-code",
+    "tickets",
+    "mysql",
+    "cli",
+    "agent"
+  ],
+  "homepage": "https://github.com/Ovejuelo/ticketsmith#readme",
+  "bugs": {
+    "url": "https://github.com/Ovejuelo/ticketsmith/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ovejuelo/ticketsmith.git"
+  },
+  "type": "module",
+  "license": "MIT",
+  "author": "Ticketsmith contributors",
+  "bin": {
+    "ticketsmith": "./dist/main.js"
+  },
+  "imports": {
+    "#src/*": "./src/*",
+    "#tests/*": "./tests/*"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node src/main.ts",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "arch": "depcruise src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "pnpm typecheck && pnpm lint && pnpm arch && pnpm guard:ignored && pnpm guard:private && pnpm test",
+    "smoke:mcp": "node scripts/mcp-smoke.ts",
+    "release": "node scripts/release.ts",
+    "guard:ignored": "node scripts/guard-ignored.ts",
+    "guard:private": "node scripts/guard-private-terms.ts",
+    "mysql:up": "docker start ticketsmith-mysql >/dev/null 2>&1 || docker run -d --name ticketsmith-mysql -p 3307:3306 -e MYSQL_ROOT_PASSWORD=dev -e MYSQL_DATABASE=app mysql:8.4.9",
+    "mysql:down": "docker stop ticketsmith-mysql",
+    "test:integration": "TICKETSMITH_TEST_MYSQL_URL=mysql://root:dev@127.0.0.1:3307 vitest run tests/integration"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@napi-rs/keyring": "^2.1.1",
+    "commander": "^15.0.0",
+    "mysql2": "^3.24.6",
+    "node-sql-parser": "^5.4.0",
+    "picocolors": "^1.1.1",
+    "pino": "^10.4.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
+    "@swc/core": "^1.16.18",
+    "@types/node": "^24.19.2",
+    "dependency-cruiser": "^18.6.0",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  },
+  "packageManager": "pnpm@12.11.2",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

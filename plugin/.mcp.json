@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ticketsmith": {
+      "command": "npx",
+      "args": ["-y", "ticketsmith@latest", "mcp"]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "ticketsmith",
+  "version": "0.4.0",
+  "description": "Ticketsmith MCP server (always the latest npm release) and ticket-investigation skills.",
+  "author": {
+    "name": "Ticketsmith contributors",
+    "url": "https://github.com/Ovejuelo"
+  },
+  "homepage": "https://github.com/Ovejuelo/ticketsmith#readme",
+  "repository": "https://github.com/Ovejuelo/ticketsmith",
+  "license": "MIT",
+  "keywords": ["jira", "tickets", "mysql", "mcp"]
+}

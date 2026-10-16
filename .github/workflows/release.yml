@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # create the GitHub Release
+  id-token: write # npm trusted publishing (OIDC) and provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - name: Tag matches the manifests
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          test "$(node -p "require('./package.json').version")" = "$tag"
+          test "$(node -p "require('./plugin/.claude-plugin/plugin.json').version")" = "$tag"
+      - run: pnpm typecheck && pnpm lint && pnpm arch && pnpm test
+      - run: pnpm build && node dist/main.js --version
+      # Trusted publishing needs npm >= 11.5; NPM_TOKEN is only a fallback until it is configured.
+      - run: npm install -g npm@latest && npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: GitHub Release
+        run: |
+          awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## "v" " {on=1; next} /^## / {on=0} on' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,114 @@
+{
+  "id": "10001",
+  "key": "OPS-42",
+  "self": "https://example.atlassian.net/rest/api/3/issue/10001",
+  "fields": {
+    "summary": "Invoices are not shown for merchant 123",
+    "issuetype": { "id": "1", "name": "Bug" },
+    "status": { "id": "3", "name": "In Progress", "statusCategory": { "key": "indeterminate" } },
+    "priority": { "id": "2", "name": "High" },
+    "labels": ["billing", "customer-reported"],
+    "components": [{ "id": "100", "name": "Invoices" }],
+    "reporter": { "accountId": "acc-1", "displayName": "Ana Reporter", "active": true },
+    "assignee": { "accountId": "acc-2", "displayName": "Ben Engineer", "active": true },
+    "created": "2026-10-01T09:15:00.000-0500",
+    "updated": "2026-10-14T18:30:12.345+0000",
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Merchant " },
+            { "type": "text", "text": "123", "marks": [{ "type": "strong" }] },
+            { "type": "text", "text": " cannot see invoices since the last deploy." }
+          ]
+        },
+        {
+          "type": "orderedList",
+          "attrs": { "order": 1 },
+          "content": [
+            {
+              "type": "listItem",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [{ "type": "text", "text": "Log in as the merchant" }]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Open Invoices" }] }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "codeBlock",
+          "attrs": { "language": "text" },
+          "content": [
+            {
+              "type": "text",
+              "text": "TypeError: cannot read properties of undefined (reading 'total')"
+            }
+          ]
+        },
+        {
+          "type": "mediaSingle",
+          "attrs": { "layout": "center" },
+          "content": [
+            {
+              "type": "media",
+              "attrs": {
+                "id": "media-1",
+                "type": "file",
+                "collection": "",
+                "alt": "screenshot.png"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "attachment": [
+      {
+        "id": "20001",
+        "filename": "screenshot.png",
+        "mimeType": "image/png",
+        "size": 245760,
+        "created": "2026-10-01T09:16:00.000-0500",
+        "content": "https://example.atlassian.net/rest/api/3/attachment/content/20001"
+      }
+    ],
+    "issuelinks": [
+      {
+        "id": "30001",
+        "type": { "id": "1", "name": "Blocks", "inward": "is blocked by", "outward": "blocks" },
+        "outwardIssue": {
+          "id": "10002",
+          "key": "OPS-43",
+          "fields": { "summary": "Monthly report" }
+        }
+      },
+      {
+        "id": "30002",
+        "type": { "id": "2", "name": "Relates", "inward": "relates to", "outward": "relates to" },
+        "inwardIssue": {
+          "id": "10003",
+          "key": "WEB-7",
+          "fields": { "summary": "Invoices page refactor" }
+        }
+      }
+    ],
+    "customfield_10042": {
+      "self": "https://example.atlassian.net/rest/api/3/customFieldOption/1",
+      "value": "Billing",
+      "id": "1"
+    },
+    "customfield_10050": [{ "value": "Production", "id": "5" }, { "value": "Sandbox", "id": "6" }],
+    "customfield_10060": null
+  }
+}

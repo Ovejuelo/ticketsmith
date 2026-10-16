@@ -1,0 +1,17 @@
+{
+  "name": "ticketsmith",
+  "owner": {
+    "name": "Ticketsmith contributors",
+    "url": "https://github.com/Ovejuelo"
+  },
+  "metadata": {
+    "description": "Ticketsmith for Claude Code: guarded, masked access to your tickets and databases."
+  },
+  "plugins": [
+    {
+      "name": "ticketsmith",
+      "source": "./plugin",
+      "description": "Ticketsmith MCP server (always the latest npm release) and ticket-investigation skills."
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "startAt": 0,
+  "maxResults": 100,
+  "total": 1,
+  "comments": [
+    {
+      "id": "50001",
+      "author": { "accountId": "acc-2", "displayName": "Ben Engineer", "active": true },
+      "body": {
+        "type": "doc",
+        "version": 1,
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              { "type": "mention", "attrs": { "id": "acc-1", "text": "@Ana Reporter" } },
+              { "type": "text", "text": " looking into it." }
+            ]
+          }
+        ]
+      },
+      "created": "2026-10-02T10:00:00.000-0500",
+      "updated": "2026-10-02T10:00:00.000-0500"
+    }
+  ]
+}
