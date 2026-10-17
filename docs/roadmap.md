@@ -13,7 +13,7 @@
 | **7. Approved DB writes** (live check pending) | Write guard, `db_propose_change`, `changes show/approve/reject`, preflight, rollback scripts | Service requests resolved with one approval |
 | **8. Code changes (L3)** (live check pending) | `ticketsmith code <KEY>`: worktree and branch per ticket from the fix branch, file tools confined to it (no shell), `code_run_tests`/`code_diff`, tests re-run by Ticketsmith, ask-before-push, PRs through GitHub or Bitbucket Cloud APIs or a link for any other host | Bugs fixed with human review |
 | **9. New functionality** (live check pending) | Feature playbook: spec + clarifying questions → design plan the human approves → coordinated back/front worktrees from the feature base branch → new tests → schema changes as migration files → ask before PRs (requirements §4.15) | New functionality tickets implemented end to end with two human checkpoints |
-| **10. Classification + knowledge + evals** | Rules + LLM, `classify`, `knowledge add`, golden set, `eval` | Measure before raising autonomy |
+| **10. Classification + knowledge + evals** (live check pending) | Rules + LLM, `classify`, `knowledge add`, golden set, `eval` | Measure before raising autonomy |
 | **11. Reports, service requests, L2 JIRA** | Playbooks, `jira_add_comment`/`jira_transition` with confirmation | |
 | **12. Extension** | `AgentSdkRuntime`, JIRA Data Center, OAuth, other DB engines + contract suites, Metabase API | |
 

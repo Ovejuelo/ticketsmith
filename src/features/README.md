@@ -11,7 +11,9 @@
 | `changes/` | `changes list\|show\|approve\|reject` | — |
 | `code/` | `code <KEY>`, `code push\|status\|discard`, `feature <KEY>`, `feature approve\|reject\|implement\|push\|status` | `code_run_tests`, `code_diff` (code sessions only) |
 | `repos/` | — | `repo_list`, `repo_files`, `repo_search`, `repo_read` |
-| `knowledge/` | — | `knowledge_read`, `knowledge_search` |
+| `knowledge/` | `knowledge add <KEY>` | `knowledge_read`, `knowledge_search` |
+| `classify/` | `classify <KEY>` | — |
+| `evals/` | `eval`, `eval add <KEY>` | — |
 | `process/` | `process <KEY>`, `process --next` | — |
 | `mcp/` | `mcp`, `mcp setup` | — |
 

@@ -5,6 +5,7 @@
 | Module | Holds |
 |---|---|
 | `kernel/` | `Result`, `AppError`, logger. Depends on nothing |
+| `classification/` | `ticket-types.md` (schema, loader, onboarding draft), `classifyByRules`, the LLM fallback and the person's decision (`resolveClassification`) |
 | `agent/` | `AgentRuntime` port with `providers/claude-code` (headless, MCP tools only), built-in playbooks, output schemas, `runStructured` (validate + one retry) |
 | `project/` | `Project` model with optional integrations, `project.yaml` store, paths, migration of phase-1 profiles |
 | `secrets/` | `SecretStore` port with `providers/keyring` and `providers/env` |

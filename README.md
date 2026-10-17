@@ -4,7 +4,7 @@ Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud a
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.9. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes, code fixes with tests and pull requests (`ticketsmith code`) and new functionality with a design checkpoint (`ticketsmith feature`) work today. Classification, cases and evals are next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.10. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes, code fixes with tests and pull requests (`ticketsmith code`) new functionality with a design checkpoint (`ticketsmith feature`), and classification with resolved cases and evals work today. L2 JIRA comments and transitions are next; see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -108,6 +108,19 @@ ticketsmith code discard OPS-123  # removes the worktrees and local branches
 ```
 
 The agent edits only inside the ticket's worktrees and has no shell: it runs your configured `testCommand` through Ticketsmith, which runs the tests again itself before showing you the diff. Branches follow `branchPattern` (default `fix/{key}-{slug}`, e.g. `hotfix/{key}-{slug}`). Pull requests open through GitHub (or GitHub Enterprise with `host.apiUrl`) and Bitbucket Cloud with an API token stored in the keychain on first use; for any other host you get the link and the description to paste.
+
+### Classification, cases and evals
+
+`knowledge/ticket-types.md` (drafted at onboarding from your issue types; review it) lists your ticket types, the signals that find them and the command that handles each one. Rules decide when they are sure; otherwise a short LLM run does, and you choose when it is unsure too.
+
+```sh
+ticketsmith classify OPS-123             # type, confidence, who decided, and the command to run next
+ticketsmith process OPS-123              # without --playbook it classifies first
+ticketsmith knowledge add OPS-123 --note "Expired card; customer updated it"   # a masked resolved case
+ticketsmith eval add OPS-123             # a masked snapshot with the right type and the real solution
+ticketsmith eval                          # classification accuracy; fails on regressions
+ticketsmith eval --full --budget 5        # also runs the playbooks and an LLM judge
+```
 
 ### New functionality
 

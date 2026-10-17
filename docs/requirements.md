@@ -177,6 +177,7 @@ Nothing requires a ticket source: a project with only repos (or only databases) 
 - **Rules first** (pure function): `issuetype`, labels, components, custom fields and keywords, configurable in `knowledge/ticket-types.md` (YAML front matter).
 - **LLM when in doubt:** structured output validated with zod `{ type, confidence, reason, playbook }`.
 - Below the project's confidence threshold (default `0.75`), the user is asked and the decision is recorded as a case.
+- **As implemented (phase 10, ADR 0026):** rules score issue type (0.6), each matching label or component (0.25) and keywords (0.1 each, up to 0.3), ignoring case and accents; two types closer than 0.15 lower the confidence. Under the threshold a short read-only agent run decides (`jira_get_issue`, `knowledge_*`; budget `classification.maxBudgetUsd`, default $0.30), and a person chooses in the terminal when it is unsure too (without a terminal the command stops and says what to run). The result goes to `out/<KEY>/classification.json`. Each type has a `route`: `process` (its playbook), `code` or `feature`. `process` without `--playbook` classifies first and never starts code changes by itself. Onboarding drafts `ticket-types.md` from the ticket source's issue types and never overwrites it.
 
 ### 4.4 Agent and playbooks
 - `AgentRuntime.run({ prompt, playbook, outputSchema, mcpConfig, model, maxBudgetUsd, timeoutMs })` → `Result<AgentRun, AgentError>` (`core/agent`, ADR 0022).
@@ -288,7 +289,7 @@ The agent has no approve tool. Nothing in the MCP server can turn a proposal int
 - `ticket-types.md`: types, signals and classification rules (YAML front matter).
 - `playbooks/<type>.md`: how each type is resolved, which tools to use and the output format.
 - `schema-notes.md`: data model notes the schema does not tell (states, soft deletes, multi-tenancy…).
-- `cases/<KEY>.md`: resolved and approved cases (ticket → classification → solution).
+- `cases/<KEY>.md`: resolved and approved cases (ticket → classification → solution), written masked by `ticketsmith knowledge add <KEY>` or at the end of `process`/`code`/`feature implement` in a terminal (which also asks whether the classification was right).
 
 It is not training: it is **curated context** that grows with use.
 
@@ -296,6 +297,7 @@ It is not training: it is **curated context** that grows with use.
 - Per-project `evals/`: real resolved tickets (anonymized) with the expected classification and the real solution.
 - `ticketsmith eval [--type report]` runs the set and reports: classification accuracy, output validity (schema), queries passing the guard and, optionally, an LLM judgment against the real solution.
 - Run before and after changing a playbook, prompt or model. No autonomy level is raised for a type without evals.
+- **As implemented (phase 10):** `eval add <KEY>` writes `evals/<KEY>.yaml` with a **masked** snapshot of the ticket, the expected type (flag or saved classification) and the real solution (flag or the case note), so evals can be shared. `eval` classifies every case from its snapshot (served to the tools instead of the ticket source) and reports accuracy per type, mistakes and rules-only decisions. `eval --full` also runs the expected type's playbook and an LLM judge (1–5) against the real solution, within `--budget` (default $10). Runs are saved in `local/evals/`; any case that was right and is now wrong, or drops 2+ judge points, is a regression and the command fails. `doctor` warns about types with fewer than 2 evals.
 
 ### 4.14 Audit
 One JSONL file per run in `audit/` with: command, project, ticket, classification, prompts sent (with masking applied), tool calls (input and output summary), generated files, duration, tokens and cost when available. Secrets are redacted.

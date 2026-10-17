@@ -17,7 +17,7 @@ You work through the `ticketsmith` MCP tools. They already mask sensitive values
 ## Steps
 
 1. **Read the ticket** with `jira_get_issue`. Extract the symptom, steps, dates, identifiers (accounts, emails, folios, ids) and which database or environment it names. Check linked or similar tickets with `jira_search` when useful.
-2. **Read the project knowledge** with `knowledge_read("brief.md")`: it links the repository maps and analyses, the database schemas and the project's playbooks. Use `knowledge_search` to find a table, endpoint or domain term across all of it.
+2. **Read the project knowledge** (and look for similar resolved cases with `knowledge_search`, they live in knowledge/cases/) with `knowledge_read("brief.md")`: it links the repository maps and analyses, the database schemas and the project's playbooks. Use `knowledge_search` to find a table, endpoint or domain term across all of it.
 3. **Find the data.**
    - Start with `db_schema` to see the tables of a database or group, then one table's columns, keys and referrers. Do not guess column names.
    - If the ticket names the database, query it with `db_select`. If not and the databases form a group, find the right one with `db_select_group` using a narrow lookup (an id or email).

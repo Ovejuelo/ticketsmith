@@ -72,6 +72,8 @@ ticketsmith code OPS-123             # fixes it in a worktree; asks before pushi
 ticketsmith feature OPS-124          # new functionality: questions, spec and plan you approve, then code
 ```
 
+Then teach it your tickets: review `knowledge/ticket-types.md` (drafted from your issue types), save resolved tickets as cases (`ticketsmith knowledge add <KEY>`) and as evals (`ticketsmith eval add <KEY>`, two or more per type), and run `ticketsmith eval` before changing playbooks or models.
+
 The MCP server serves the **active project** (`ticketsmith project use <name>` changes it).
 
 ## Staying up to date
