@@ -22,6 +22,11 @@ export const TicketAnalysisSchema = z.object({
     .array(z.string().min(1))
     .describe('What is still unknown and who could answer it'),
   jiraComment: text('A reply for the ticket, ready to paste, in the language of the ticket'),
+  suggestedTransition: z
+    .string()
+    .min(1)
+    .optional()
+    .describe('The status the ticket should move to next, if any (a person applies it)'),
 })
 export type TicketAnalysis = z.infer<typeof TicketAnalysisSchema>
 

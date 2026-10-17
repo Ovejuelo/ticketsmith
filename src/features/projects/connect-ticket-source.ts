@@ -15,6 +15,8 @@ export type JiraConnectionInput = {
   readonly email: string
   readonly auth: JiraAuthKind
   readonly token: string
+  /** L2 writes from the CLI; unchanged when omitted. */
+  readonly allowWrites?: boolean | undefined
 }
 
 export type ConnectedTicketSource = {
@@ -59,6 +61,7 @@ export const connectTicketSource = async (
         boardId: kept?.boardId,
         jql: kept?.jql,
         customFields: kept?.customFields ?? {},
+        allowWrites: input.allowWrites ?? previous?.allowWrites ?? false,
       },
     },
   })

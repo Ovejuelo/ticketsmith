@@ -23,6 +23,8 @@ export const JiraCloudSourceConfigSchema = z
     jql: z.string().min(1).optional(),
     /** Readable alias → custom field id, e.g. { "module": "customfield_10042" }. */
     customFields: z.record(z.string(), z.string().regex(/^customfield_\d+$/)).default({}),
+    /** L2: comments and transitions posted by a person from the CLI (token needs write:jira-work). */
+    allowWrites: z.boolean().default(false),
   })
   .refine((config) => config.auth !== 'scoped' || config.cloudId !== undefined, {
     message: 'cloudId is required when auth is "scoped"',

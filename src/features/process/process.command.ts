@@ -6,6 +6,7 @@ import {
   TICKET_TYPES_FILE,
 } from '../../core/classification/index.ts'
 import {
+  askConfirm,
   type CommandDeps,
   fail,
   globalOptions,
@@ -14,6 +15,7 @@ import {
   requireTickets,
 } from '../../core/cli/index.ts'
 import { reviewRun } from '../../core/knowledge/index.ts'
+import { postComment, readComment } from '../../core/publishing/index.ts'
 import {
   defaultProjectJql,
   describeTicketSourceError,
@@ -152,5 +154,25 @@ export const processCommand = ({ io, servicesFor, startAgentToolServer }: Comman
           '',
         ].join('\n'),
       )
+      if (io.interactive && tickets.writer !== null) {
+        const text = await readComment(opened.paths.outDir, result.record.ticket, undefined)
+        if (text.ok) {
+          const posted = await postComment(
+            tickets.writer,
+            services.openAuditLog(opened.project.name, opened.paths, 'tickets'),
+            opened.paths.outDir,
+            parsed.data,
+            text.value,
+            { show: (t) => io.out(t), ask: (q) => askConfirm(q, false) },
+          )
+          io.out(
+            posted.ok
+              ? posted.value === null
+                ? 'Not posted.\n'
+                : `Posted: ${posted.value}\n`
+              : `Could not post: ${posted.error}\n`,
+          )
+        }
+      }
       if (io.interactive) await reviewRun(opened, result.record.ticket, (text) => io.out(text))
     })

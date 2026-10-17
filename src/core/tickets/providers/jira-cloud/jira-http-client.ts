@@ -81,6 +81,40 @@ export class JiraHttpClient {
     }
   }
 
+  /** One write, never retried (not idempotent). `schema` null for empty responses (204). */
+  async post<T>(
+    path: string,
+    body: unknown,
+    schema: z.ZodType<T> | null,
+  ): Promise<Result<T | null, TicketSourceError>> {
+    let response: Response
+    try {
+      response = await this.#fetch(this.#url(path, {}), {
+        method: 'POST',
+        headers: {
+          Authorization: this.#authorization,
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this.#timeoutMs),
+      })
+    } catch (error) {
+      return err({ kind: 'network', message: describeNetworkError(error, this.#timeoutMs) })
+    }
+    this.#logger.debug({ path, status: response.status }, 'jira write')
+    if (!response.ok) {
+      return err(
+        await toError(response, path, parseRetryAfter(response.headers.get('retry-after'))),
+      )
+    }
+    if (schema === null || response.status === 204) {
+      await response.body?.cancel()
+      return ok(null)
+    }
+    return parseBody(response, schema, path)
+  }
+
   #url(path: string, query: Query): string {
     const url = new URL(`${this.#baseUrl}${path}`)
     for (const [name, value] of Object.entries(query)) {

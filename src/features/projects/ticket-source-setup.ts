@@ -1,5 +1,10 @@
 import { askConfirm, fail, type Io, orFail, spinner } from '../../core/cli/index.ts'
-import { type JiraAuthKind, normalizeSiteUrl, type Project } from '../../core/project/index.ts'
+import {
+  describeProjectError,
+  type JiraAuthKind,
+  normalizeSiteUrl,
+  type Project,
+} from '../../core/project/index.ts'
 import { describeSecretError, secretEnvVariable } from '../../core/secrets/index.ts'
 import type { Services } from '../../core/services/index.ts'
 import { connectTicketSource } from './connect-ticket-source.ts'
@@ -10,6 +15,7 @@ export type JiraFlags = {
   readonly site?: string
   readonly email?: string
   readonly auth?: JiraAuthKind
+  readonly allowWrites?: boolean
 }
 
 /** Scripted setup: every JIRA flag is required and the token comes from the environment. */
@@ -25,7 +31,13 @@ export const addTicketSourceFromFlags = async (
   const { project: updated } = await connectTicketSource(
     services,
     project,
-    { siteUrl: orFail(normalizeSiteUrl(site), String), email, auth, token: token.value },
+    {
+      siteUrl: orFail(normalizeSiteUrl(site), String),
+      email,
+      auth,
+      token: token.value,
+      allowWrites: flags.allowWrites,
+    },
     { storeToken: token.source !== 'environment' },
   )
   return updated
@@ -58,6 +70,19 @@ export const configureTicketSourceInteractively = async (
       progress.stop('Verification failed')
       throw error
     }
+  }
+
+  const tickets = updated.integrations.tickets
+  const allowWrites = await askConfirm(
+    'Allow posting comments and transitions from the CLI? You read and confirm each one; the token needs write:jira-work.',
+    tickets?.allowWrites ?? false,
+  )
+  if (tickets !== undefined && allowWrites !== tickets.allowWrites) {
+    updated = {
+      ...updated,
+      integrations: { ...updated.integrations, tickets: { ...tickets, allowWrites } },
+    }
+    orFail(await services.projects.save(updated), describeProjectError)
   }
 
   if (await askConfirm('Pick the JIRA project and board now?', current?.projectKey === undefined)) {

@@ -1,4 +1,5 @@
 export { apiBaseUrl, type JiraAuth, resolveCloudId } from './api-base-url.ts'
 export { JiraCloudDiscovery } from './jira-cloud-discovery.ts'
 export { JiraCloudTicketSource } from './jira-cloud-ticket-source.ts'
+export { JiraCloudTicketWriter } from './jira-cloud-ticket-writer.ts'
 export { JiraHttpClient } from './jira-http-client.ts'

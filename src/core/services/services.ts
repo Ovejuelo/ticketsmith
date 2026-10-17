@@ -11,12 +11,19 @@ import type {
 } from '../project/index.ts'
 import type { HostType, PullRequestHost } from '../repos/index.ts'
 import type { FoundSecret, SecretName, SecretStoreError } from '../secrets/index.ts'
-import type { JiraDiscovery, TicketSource, TicketSourceError } from '../tickets/index.ts'
+import type {
+  JiraDiscovery,
+  TicketSource,
+  TicketSourceError,
+  TicketWriter,
+} from '../tickets/index.ts'
 
 /** A connected ticket source; only sources with a setup API (JIRA) provide discovery. */
 export type TicketsConnection = {
   readonly source: TicketSource
   readonly discovery: JiraDiscovery | null
+  /** Only when the project allows writes (allowWrites); used by the CLI after a confirmation. */
+  readonly writer: TicketWriter | null
 }
 
 /** What features need from the outside world; implemented in bootstrap/composition-root.ts. */

@@ -24,6 +24,7 @@ import {
   type JiraAuth,
   JiraCloudDiscovery,
   JiraCloudTicketSource,
+  JiraCloudTicketWriter,
   JiraHttpClient,
   resolveCloudId,
 } from '../core/tickets/providers/jira-cloud/index.ts'
@@ -97,6 +98,7 @@ const connectors: { readonly [T in TicketSourceConfig['type']]: Connector<T> } =
         customFields: config.customFields,
       }),
       discovery: new JiraCloudDiscovery(client),
+      writer: config.allowWrites ? new JiraCloudTicketWriter(client, config.siteUrl) : null,
     }
   },
 }

@@ -36,6 +36,7 @@ describe('doctor', () => {
       'token type': 'ok',
       token: 'ok',
       connection: 'ok',
+      writes: 'ok',
       jql: 'ok',
       board: 'ok',
       databases: 'skip',

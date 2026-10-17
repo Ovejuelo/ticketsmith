@@ -19,6 +19,7 @@ import { FakeAgentRuntime } from '#tests/support/fake-agent-runtime.ts'
 import { FakeDatabases } from '#tests/support/fake-database.ts'
 import { FakeJiraDiscovery } from '#tests/support/fake-jira-discovery.ts'
 import { FakePullRequestHosts } from '#tests/support/fake-pull-request-host.ts'
+import { FakeTicketWriter } from '#tests/support/fake-ticket-writer.ts'
 import { InMemoryAuditLog } from '#tests/support/in-memory-audit-log.ts'
 import { InMemorySecretStore } from '#tests/support/in-memory-secret-store.ts'
 import { InMemoryTicketSource } from '#tests/support/in-memory-ticket-source.ts'
@@ -32,6 +33,7 @@ export const testJira = (
   auth: 'scoped',
   cloudId: 'cloud-1',
   customFields: {},
+  allowWrites: false,
   ...overrides,
 })
 
@@ -105,6 +107,7 @@ export class FakeCli {
   readonly audit = new InMemoryAuditLog()
   readonly databases = new FakeDatabases()
   readonly agent = new FakeAgentRuntime()
+  readonly writer = new FakeTicketWriter()
   readonly pullRequests = new FakePullRequestHosts()
   stdout = ''
   stderr = ''
@@ -127,7 +130,11 @@ export class FakeCli {
       resolveCloudId: async () => ok('cloud-1'),
       connectTickets: (config, token): TicketsConnection => {
         this.connections.push({ config, token })
-        return { source: this.source, discovery: this.discovery }
+        return {
+          source: this.source,
+          discovery: this.discovery,
+          writer: config.allowWrites ? this.writer : null,
+        }
       },
       connectDatabase: (config, password) => this.databases.connect(config.name, password),
       agent: this.agent,

@@ -119,13 +119,37 @@ const checkTickets = async (
   }
   add('token', 'ok', `Found in the ${token.value.source}`)
 
-  const { source, discovery } = services.connectTickets(tickets, token.value.value)
+  const { source, discovery, writer } = services.connectTickets(tickets, token.value.value)
   const identity = await source.verifyConnection()
   if (!identity.ok) {
     add('connection', 'fail', describeTicketSourceError(identity.error))
     return
   }
   add('connection', 'ok', `Authenticated as ${identity.value.displayName}`)
+  if (writer === null) {
+    add('writes', 'ok', 'Read-only: comments and transitions are off (allowWrites)')
+  } else {
+    const allowed = await writer.permissions()
+    if (!allowed.ok)
+      add(
+        'writes',
+        'warn',
+        `Could not check write permissions: ${describeTicketSourceError(allowed.error)}`,
+      )
+    else if (allowed.value.addComments && allowed.value.transitionIssues) {
+      add('writes', 'ok', 'You can post comments and transitions, each confirmed in the terminal')
+    } else {
+      const missing = [
+        allowed.value.addComments ? '' : 'add comments',
+        allowed.value.transitionIssues ? '' : 'transition issues',
+      ].filter(Boolean)
+      add(
+        'writes',
+        'warn',
+        `allowWrites is on, but the account cannot ${missing.join(' or ')} (check the token's write:jira-work scope and project permissions)`,
+      )
+    }
+  }
 
   if (tickets.jql === undefined) {
     add('jql', 'warn', 'No JQL configured. Run `ticketsmith jira discover`.')

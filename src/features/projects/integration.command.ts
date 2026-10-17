@@ -70,6 +70,10 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
     .addOption(
       new Option('--auth <kind>', 'tickets: JIRA token type').choices(JiraAuthKindSchema.options),
     )
+    .option(
+      '--allow-writes',
+      'tickets: allow posting comments and transitions from the CLI (you confirm each)',
+    )
     .option('--name <name>', 'databases: name in this project, e.g. shard1 (non-interactive)')
     .option('--host <host>', 'databases: host')
     .option('--port <port>', 'databases: port (default 3306)', parsePositiveInt)

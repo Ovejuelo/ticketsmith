@@ -1,3 +1,4 @@
+export { type AdfDoc, markdownToAdf } from './adf/markdown-to-adf.ts'
 export { describeTicketSourceError } from './describe-error.ts'
 export {
   defaultProjectJql,
@@ -27,3 +28,4 @@ export type {
   TicketSource,
   TicketSourceError,
 } from './ticket-source.port.ts'
+export type { TicketTransition, TicketWriter } from './ticket-writer.port.ts'
