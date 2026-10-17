@@ -4,7 +4,7 @@ Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud a
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.10. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes, code fixes with tests and pull requests (`ticketsmith code`) new functionality with a design checkpoint (`ticketsmith feature`), and classification with resolved cases and evals work today. L2 JIRA comments and transitions are next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.11. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes, code fixes with tests and pull requests (`ticketsmith code`) new functionality with a design checkpoint (`ticketsmith feature`), classification with resolved cases and evals, and JIRA comments and transitions you confirm (`ticketsmith comment` / `transition`) work today. More database engines, ticket sources and runtimes are next; see the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -41,7 +41,7 @@ Step by step on a new machine: [docs/guides/getting-started.md](docs/guides/gett
 | JIRA | A scoped, read-only API token. |
 | Database reads | Exactly one `SELECT`, parsed (never regex) and checked by a two-layer guard that rejects comment tricks and inspects the whole tree. Only the SQL regenerated from the validated tree runs, in a read-only session and transaction, with a time limit and a row limit, and it is always rolled back. This holds even for a write-capable account. |
 | Sensitive data | Emails, phones, tax ids, bank accounts, cards and secrets become placeholders such as `[EMAIL_1]@northwind.mx` inside the tools. Claude can pass them back in JQL or SQL and the server substitutes the real value, so the model never sees it. |
-| Writes | Code changes only in repositories you mark `allowCodeChanges`, in a worktree per ticket, pushed only after you say yes (never to protected branches). Database changes only on databases you mark `allowChanges`: the agent **proposes** one INSERT/UPDATE (no DELETE or DDL, ever), Ticketsmith validates it, counts the rows and prepares a rollback, and **you approve it in your terminal** by typing the database name. Later phases add JIRA comments and pull requests the same way. |
+| Writes | JIRA comments and transitions only when the ticket source has `allowWrites`, posted by you from the CLI after reading the exact text (`ticketsmith comment` / `transition`); the agent has no JIRA write tool. Code changes only in repositories you mark `allowCodeChanges`, in a worktree per ticket, pushed only after you say yes (never to protected branches). Database changes only on databases you mark `allowChanges`: the agent **proposes** one INSERT/UPDATE (no DELETE or DDL, ever), Ticketsmith validates it, counts the rows and prepares a rollback, and **you approve it in your terminal** by typing the database name. Later phases add JIRA comments and pull requests the same way. |
 | Audit | Every MCP call is logged locally, without its content. |
 
 Details: [requirements](docs/requirements.md) §2 and [ADR 0019](docs/decisions/0019-two-layer-read-guard.md).

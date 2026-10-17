@@ -62,6 +62,7 @@ src/
 │   └── mcp/                      mcp (serve), mcp setup
 └── core/                         shared building blocks (see core/README.md)
     ├── kernel/                   Result, AppError, logger
+    ├── publishing/               confirmed ticket writes (comments, transitions), audited by hash
     ├── classification/           ticket-types.md, rules, LLM fallback, the person's decision
     ├── agent/                    AgentRuntime port, Claude Code headless provider, playbooks, output schemas
     ├── project/                  Project model (optional integrations), project.yaml store, paths, profile migration

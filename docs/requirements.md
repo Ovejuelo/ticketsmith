@@ -253,6 +253,8 @@ Configurable per project and per ticket type; the effective level is the **minim
 
 Write tools are only registered in the MCP server when the effective level allows them, so they do not exist for the agent at lower levels.
 
+**L2 as implemented (phase 11, ADR 0027):** the agent never gets a JIRA write tool. It writes `jira_comment.md` and may suggest a transition in `analysis.md`; a person posts with `ticketsmith comment <KEY>` or `ticketsmith transition <KEY> [status]` (interactive only, exact content shown, `y/N`), or when `process` offers it at the end. Writes need `allowWrites: true` on the ticket source and a token with `write:jira-work`; `doctor` checks the account's comment and transition permissions. Each write is audited by ticket, hash and length, never its text.
+
 ### 4.10 Approved database writes (change requests)
 
 Flow, designed so that the LLM can propose but never execute or approve:
@@ -336,6 +338,7 @@ Autonomy: steps 1–3 are L1 (files only); steps 4–6 are L3 (§4.9).
 | `ticketsmith jira discover` | 1 | Pick the JIRA project and board and store the JQL (part of onboarding from phase 3) |
 | `ticketsmith list` | 1 | Tickets from the project's JQL (needs a ticket source) |
 | `ticketsmith show <KEY>` | 1 | Normalized ticket as Markdown (stdout or `--out`) |
+| `ticketsmith comment <KEY>` / `transition <KEY> [status]` | 11 | Post the comment or move the ticket after you read and confirm it (L2) |
 | `ticketsmith classify <KEY>` | 10 | Classify only |
 | `ticketsmith process <KEY>` / `--next` | 6 | End-to-end processing |
 | `ticketsmith mcp` | 2 | stdio MCP server |

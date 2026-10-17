@@ -6,7 +6,7 @@
 |---|---|---|
 | `projects/` | `project init\|status\|refresh\|add\|remove\|list\|use\|show\|link\|export\|import`, `jira discover` | — |
 | `doctor/` | `doctor` | — |
-| `tickets/` | `list`, `show` | `jira_get_issue`, `jira_search` |
+| `tickets/` | `list`, `show`, `comment`, `transition` | `jira_get_issue`, `jira_search` |
 | `databases/` | `db ask` | `db_select`, `db_select_group`, `db_schema`, `db_propose_change` |
 | `changes/` | `changes list\|show\|approve\|reject` | — |
 | `code/` | `code <KEY>`, `code push\|status\|discard`, `feature <KEY>`, `feature approve\|reject\|implement\|push\|status` | `code_run_tests`, `code_diff` (code sessions only) |
