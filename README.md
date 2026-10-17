@@ -221,6 +221,10 @@ pnpm build          # dist/main.js
 
 Start with [docs/architecture.md](docs/architecture.md): layers, folder map, "where do I put X?" and naming conventions. Adding a command or MCP tool: [docs/guides/adding-a-feature.md](docs/guides/adding-a-feature.md). Database integration tests: [docs/guides/local-databases.md](docs/guides/local-databases.md). Publishing: [docs/guides/releasing.md](docs/guides/releasing.md).
 
+## Contributing
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go privately, as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
 [MIT](LICENSE)

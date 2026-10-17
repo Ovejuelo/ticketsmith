@@ -1,0 +1,32 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Security issue? Do not file it here: see SECURITY.md. Never paste real tickets, data or tokens."
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `ticketsmith --version`
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Commands you ran and the (anonymized) output. `ticketsmith doctor` output helps.
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Setup
+      description: OS, Node version, integrations involved (e.g. JIRA Cloud, PostgreSQL, GitHub)

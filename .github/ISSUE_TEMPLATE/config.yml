@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/Ovejuelo/ticketsmith/security/advisories/new
+    about: Please report security issues privately.

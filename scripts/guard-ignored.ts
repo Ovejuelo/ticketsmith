@@ -12,6 +12,8 @@ const ignored = execFileSync(
 )
   .split('\n')
   .filter((line) => line.trim() !== '')
+  // Operating system clutter (macOS Finder writes .DS_Store when a folder is inspected).
+  .filter((line) => !/(^|\/)(\.DS_Store|Thumbs\.db)$/.test(line))
 
 if (ignored.length > 0) {
   console.error(`These project files are ignored by git (fix .gitignore):\n${ignored.join('\n')}`)

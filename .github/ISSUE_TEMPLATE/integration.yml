@@ -1,0 +1,22 @@
+name: Integration or feature request
+description: A new ticket source, database engine, code host or capability
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to do and why
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: The system and its API
+      description: Links to the API docs, auth method, and whether read-only access is possible
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Fits the principles
+      options:
+        - label: The agent only reads; anything that writes is done by a person from the CLI
+          required: true
