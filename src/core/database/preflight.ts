@@ -102,7 +102,8 @@ export const updateRollback = (
   ].join('\n')
 
 /**
- * Removes the rows an INSERT added, from the keys it listed or the AUTO_INCREMENT ids it got.
+ * Removes the rows an INSERT added, from the keys it listed, the keys PostgreSQL returned or the
+ * AUTO_INCREMENT ids it got.
  * A script for a human only: Ticketsmith never runs it (and never runs DELETE).
  */
 export const insertRollback = (

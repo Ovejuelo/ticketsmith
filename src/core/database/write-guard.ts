@@ -36,6 +36,8 @@ export type GuardedChange = {
   readonly whereSql: string | null
   /** INSERT only: how many rows VALUES adds. */
   readonly insertRows: number | null
+  /** INSERT only: each row's primary key when VALUES lists it as plain literals, else null. */
+  readonly listedKeys: readonly Readonly<Record<string, unknown>>[] | null
   readonly [guardedChange]: true
 }
 
@@ -211,6 +213,7 @@ const guardInsert = (
     }
   }
   const names = columns.map(identifierName)
+  const listedKeys = keysOf(rows, names, primaryKey)
   const regenerated = regenerate(parsed, dialect)
   if (!regenerated.ok) return regenerated
   // node-sql-parser leaves INSERT columns unquoted; quote them so reserved words survive.
@@ -227,6 +230,7 @@ const guardInsert = (
     columns: names,
     whereSql: null,
     insertRows: rows.length,
+    listedKeys,
   } as unknown as GuardedChange)
 }
 
@@ -278,7 +282,36 @@ const guardUpdate = (
     columns: set.map((item) => identifierName(field(item, 'column'))),
     whereSql,
     insertRows: null,
+    listedKeys: null,
   } as unknown as GuardedChange)
+}
+
+/** The primary key of every VALUES row, when each key column holds a number or string literal. */
+const keysOf = (
+  rows: readonly unknown[],
+  names: readonly string[],
+  primaryKey: readonly string[],
+): readonly Readonly<Record<string, unknown>>[] | null => {
+  const positions = primaryKey.map((key) => names.indexOf(key))
+  if (positions.some((position) => position === -1)) return null
+  const keys: Record<string, unknown>[] = []
+  for (const row of rows) {
+    const items = field(row, 'value') as readonly unknown[]
+    const key: Record<string, unknown> = {}
+    for (const [index, name] of primaryKey.entries()) {
+      const item = items[positions[index] ?? -1]
+      const value = field(item, 'value')
+      const literal =
+        field(item, 'type') === 'number'
+          ? typeof value === 'number'
+          : ['single_quote_string', 'string'].includes(String(field(item, 'type'))) &&
+            typeof value === 'string'
+      if (!literal) return null
+      key[name] = value
+    }
+    keys.push(key)
+  }
+  return keys
 }
 
 /** Literals, allowlisted functions of values, and (in SET) arithmetic on the row's own columns. */

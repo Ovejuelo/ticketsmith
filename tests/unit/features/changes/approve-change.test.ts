@@ -211,6 +211,25 @@ describe('approving a change', () => {
     expect(rollback).toContain('Ticketsmith never runs this script')
   })
 
+  it('writes the INSERT rollback from the primary keys it listed', async () => {
+    const opened = await propose(
+      proposal({
+        sql: "INSERT INTO `accounts` (`id`, `email`, `status`) VALUES ('77','a@x.mx','new')",
+        kind: 'insert',
+        preflight: { rows: 1, sample: [], usesIndex: null },
+        rollbackSql: null,
+      }),
+    )
+    expect(
+      (await approveAndExecute(cli.services, opened, 'cr-0000000a', typing('shard1'))).ok,
+    ).toBe(true)
+    const rollback = await readFile(
+      join(opened.paths.outDir, 'OPS-7', 'change-cr-0000000a', 'rollback.sql'),
+      'utf8',
+    )
+    expect(rollback).toContain("DELETE FROM `accounts` WHERE `id` = '77';")
+  })
+
   it('rejects without running, and the CLI never approves without a terminal', async () => {
     const opened = await propose(proposal())
     expect((await rejectChange(opened, 'cr-0000000a', 'not needed')).ok).toBe(true)

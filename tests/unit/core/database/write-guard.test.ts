@@ -96,6 +96,24 @@ describe('guardChange — accepted changes', () => {
     expect(change.sql).toBe(
       "INSERT INTO `notes` (`account_id`, `body`) VALUES (7,'hi'), (8,CONCAT('a', 'b'))",
     )
+    expect(change.listedKeys).toBeNull() // the key comes from AUTO_INCREMENT
+  })
+
+  it('keeps the primary keys an INSERT lists as literals, for the rollback script', () => {
+    expect(
+      accepted(
+        "INSERT INTO memberships (role, group_id, account_id) VALUES ('admin', 3, 7), ('user', 4, 8)",
+      ).listedKeys,
+    ).toEqual([
+      { account_id: 7, group_id: 3 },
+      { account_id: 8, group_id: 4 },
+    ])
+    expect(accepted("INSERT INTO `order` (id, status) VALUES ('A-1', 'new')").listedKeys).toEqual([
+      { id: 'A-1' },
+    ])
+    expect(
+      accepted("INSERT INTO `order` (id, status) VALUES (CONCAT('A', '1'), 'new')").listedKeys,
+    ).toBeNull()
   })
 
   it('quotes reserved-word columns in the regenerated INSERT', () => {

@@ -151,6 +151,7 @@ export const approveAndExecute = async (
             rollbackSql: insertRollback(
               guarded.value,
               executed.value.insertedKeys ??
+                guarded.value.listedKeys ??
                 insertedKeys(guarded.value, executed.value.insertId, preflight.value.rows),
               change.id,
             ),
