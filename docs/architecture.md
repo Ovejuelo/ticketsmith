@@ -155,7 +155,7 @@ Providers live in `providers/<vendor-or-tech>/` (`jira-cloud`, `keyring`, `env`)
 `features/projects/init.command.ts` → configure integrations (`ticket-source-setup.ts`) → `onboarding.ts` runs each integration's investigator (`investigate-tickets.ts`), recording steps in `core/storage` → masked files via `core/knowledge` → `knowledge/brief.md`.
 
 **Agent** — `ticketsmith process OPS-1`:
-`features/process/process.command.ts` → `run-ticket.ts` → `CommandDeps.startAgentToolServer` (`bootstrap/tool-session.ts`: the project's tools on 127.0.0.1 with a per-run token, vault in this process) → `core/agent` `runStructured` → `Services.agent` (`ClaudeCodeCliRuntime`: `claude -p` with only those MCP tools) → validated answer → `vault.reveal` → `out/OPS-1/`.
+`features/process/process.command.ts` → `run-ticket.ts` → `CommandDeps.startAgentToolServer` (`bootstrap/tool-session.ts`: the project's tools on 127.0.0.1 with a per-run token, vault in this process) → `core/agent` `runStructured` → `Services.agentFor(project)` (`ClaudeCodeCliRuntime`: `claude -p` with only those MCP tools, or `AgentSdkRuntime` with the same boundary) → validated answer → `vault.reveal` → `out/OPS-1/`.
 
 **MCP** — Claude calls `jira_search`:
 Claude Code → `ticketsmith mcp` → `bootstrap/mcp-server.ts` → `features/tickets/search.tool.ts` with a `ToolContext` (placeholders resolved by the session vault) → `TicketSource` → result masked by the vault → audited → back to Claude.
@@ -177,6 +177,6 @@ Claude Code → `ticketsmith mcp` → `bootstrap/mcp-server.ts` → `features/ti
 | Tests | vitest | |
 | Lint + format | Biome | |
 | Architecture | dependency-cruiser (`parser: 'swc'`) | TS 7 has no JS API yet |
+| Agent | Claude Code headless; `@anthropic-ai/claude-agent-sdk` (optional peer) | ADR 0022, ADR 0029 |
 | Databases | mysql2, pg + node-sql-parser | One adapter contract suite against MySQL and PostgreSQL in Colima/Docker locally and service containers in CI |
 
-Later phases add the Claude Agent SDK.
