@@ -18,7 +18,7 @@ import { projectRepositories } from '../core/repos/index.ts'
 import { PlaceholderVault } from '../core/security/index.ts'
 import type { Services } from '../core/services/index.ts'
 import { describeStorageError, withProjectDatabase } from '../core/storage/index.ts'
-import { defaultProjectJql } from '../core/tickets/index.ts'
+import { defaultProjectJql, type TicketSource } from '../core/tickets/index.ts'
 import { FEATURES } from './features.ts'
 import { createMcpServer } from './mcp-server.ts'
 
@@ -27,6 +27,7 @@ export type ToolSessionOptions = {
   readonly auditCommand: string
   readonly only?: ((toolName: string) => boolean) | undefined
   readonly code?: CodeToolContext | undefined
+  readonly tickets?: TicketSource | undefined
 }
 
 /** One MCP server over the project's tools, with its vault, audit and lazily opened databases. */
@@ -46,7 +47,12 @@ export const openToolSession = async (
   options: ToolSessionOptions,
 ): Promise<ToolSession> => {
   const { project, paths } = opened
-  const tickets = project.integrations.tickets ? await requireTickets(services, opened) : null
+  const tickets =
+    options.tickets !== undefined
+      ? { source: options.tickets, config: { jql: undefined, projectKey: undefined } }
+      : project.integrations.tickets
+        ? await requireTickets(services, opened)
+        : null
   // Adapters open lazily (one pool per database used) and are closed with the session.
   const databases = project.integrations.databases ? requireDatabases(services, opened) : null
 

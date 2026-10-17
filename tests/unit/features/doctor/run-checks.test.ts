@@ -40,6 +40,7 @@ describe('doctor', () => {
       board: 'ok',
       databases: 'skip',
       agent: 'ok',
+      'ticket types': 'warn',
       repos: 'skip',
     })
     expect(await cli.run('doctor')).toBeNull()

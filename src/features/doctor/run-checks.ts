@@ -1,4 +1,7 @@
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { describeAgentError } from '../../core/agent/index.ts'
+import { loadTicketTypes, TICKET_TYPES_FILE } from '../../core/classification/index.ts'
 import { describeDatabaseError } from '../../core/database/index.ts'
 import {
   configuredIntegrations,
@@ -72,6 +75,7 @@ export const runChecks = async (
   if (tickets !== undefined || project.value.integrations.repos !== undefined) {
     await checkAgent(services, add)
   }
+  if (tickets !== undefined) await checkEvals(services, name.value, add)
   if (project.value.integrations.repos === undefined) {
     add('repos', 'skip', 'Not configured (`ticketsmith project add repos`)')
   } else {
@@ -288,5 +292,46 @@ const checkCodeChanges = async (
     token.ok && token.value !== null
       ? `Code changes on; branches like ${branch.value}; ${type} pull requests through the API`
       : `Code changes on; branches like ${branch.value}. No ${type} token yet: \`ticketsmith code push\` asks for one, or you get a link`,
+  )
+}
+
+/** Requirements §4.13: no autonomy for a type without evals; two per type is the minimum. */
+const checkEvals = async (
+  services: Services,
+  projectName: string,
+  add: AddCheck,
+): Promise<void> => {
+  const paths = await services.projects.locate(projectName)
+  if (!paths.ok) return
+  const types = await loadTicketTypes(paths.value.knowledgeDir)
+  if (!types.ok) {
+    add('ticket types', 'fail', types.error)
+    return
+  }
+  if (types.value === null) {
+    add(
+      'ticket types',
+      'warn',
+      `No knowledge/${TICKET_TYPES_FILE}: run \`ticketsmith project refresh tickets\` to draft it`,
+    )
+    return
+  }
+  const counts = new Map<string, number>()
+  const files = await readdir(paths.value.evalsDir).catch(() => [] as string[])
+  for (const file of files.filter((f) => f.endsWith('.yaml'))) {
+    const match = /^expectedType:\s*(\S+)/m.exec(
+      await readFile(join(paths.value.evalsDir, file), 'utf8'),
+    )
+    if (match?.[1] !== undefined) counts.set(match[1], (counts.get(match[1]) ?? 0) + 1)
+  }
+  const thin = types.value.types
+    .filter((type) => (counts.get(type.name) ?? 0) < 2)
+    .map((type) => `${type.name} (${counts.get(type.name) ?? 0})`)
+  add(
+    'evals',
+    thin.length === 0 ? 'ok' : 'warn',
+    thin.length === 0
+      ? `${files.length} eval(s), at least 2 per type`
+      : `Fewer than 2 evals for: ${thin.join(', ')}. Add resolved tickets with \`ticketsmith eval add <KEY>\``,
   )
 }

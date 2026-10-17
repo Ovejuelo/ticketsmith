@@ -4,6 +4,7 @@ import type { AuditLog } from '../audit/index.ts'
 import type { Result } from '../kernel/index.ts'
 import type { CodeToolContext } from '../mcp/index.ts'
 import type { Services } from '../services/index.ts'
+import type { TicketSource } from '../tickets/index.ts'
 import { fail, type Io } from './io.ts'
 
 export type GlobalOptions = {
@@ -41,6 +42,8 @@ export type AgentToolServerOptions = {
   readonly only?: (toolName: string) => boolean
   /** Code-change sessions: the ticket's worktrees (enables code_run_tests and code_diff). */
   readonly code?: CodeToolContext
+  /** Serve tickets from this source instead of the project's (evals: masked snapshots, no JIRA). */
+  readonly tickets?: TicketSource
 }
 
 /** The project's tools served to one agent session; the placeholder vault lives here, in memory. */

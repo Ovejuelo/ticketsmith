@@ -4,6 +4,7 @@ import { err, ok, type Result } from '../kernel/index.ts'
 import { BUG_PLAYBOOK } from './playbooks/bug.ts'
 import { CLASSIFY_PLAYBOOK } from './playbooks/classify.ts'
 import { CODE_FIX_PLAYBOOK } from './playbooks/code-fix.ts'
+import { EVAL_JUDGE_PLAYBOOK } from './playbooks/eval-judge.ts'
 import { FEATURE_DESIGN_PLAYBOOK } from './playbooks/feature-design.ts'
 import { FEATURE_IMPLEMENT_PLAYBOOK } from './playbooks/feature-implement.ts'
 import { REPO_ANALYSIS_PLAYBOOK } from './playbooks/repo-analysis.ts'
@@ -14,6 +15,7 @@ export const BUILT_IN_PLAYBOOKS: Readonly<Record<string, string>> = {
   bug: BUG_PLAYBOOK,
   classify: CLASSIFY_PLAYBOOK,
   'code-fix': CODE_FIX_PLAYBOOK,
+  'eval-judge': EVAL_JUDGE_PLAYBOOK,
   'feature-design': FEATURE_DESIGN_PLAYBOOK,
   'feature-implement': FEATURE_IMPLEMENT_PLAYBOOK,
   'repo-analysis': REPO_ANALYSIS_PLAYBOOK,
