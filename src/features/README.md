@@ -4,11 +4,12 @@
 
 | Feature | Commands | MCP tools |
 |---|---|---|
-| `projects/` | `project init\|status\|refresh\|add\|remove\|list\|use\|show\|link\|export\|import`, `jira discover` | — |
+| `projects/` | `project init\|status\|refresh\|add\|remove\|agent\|list\|use\|show\|link\|export\|import`, `jira discover` | — |
 | `doctor/` | `doctor` | — |
 | `tickets/` | `list`, `show`, `comment`, `transition` | `jira_get_issue`, `jira_search` |
 | `databases/` | `db ask` | `db_select`, `db_select_group`, `db_schema`, `db_propose_change` |
 | `changes/` | `changes list\|show\|approve\|reject` | — |
+| `metabase/` | `metabase publish <KEY>` | — |
 | `code/` | `code <KEY>`, `code push\|status\|discard`, `feature <KEY>`, `feature approve\|reject\|implement\|push\|status` | `code_run_tests`, `code_diff` (code sessions only) |
 | `repos/` | — | `repo_list`, `repo_files`, `repo_search`, `repo_read` |
 | `knowledge/` | `knowledge add <KEY>` | `knowledge_read`, `knowledge_search` |

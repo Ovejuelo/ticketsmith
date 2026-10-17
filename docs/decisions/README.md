@@ -33,3 +33,6 @@ Template: `# NNNN. Title` · **Status** · **Context** (why it came up) · **Dec
 | [0025](0025-new-functionality-design-checkpoint.md) | New functionality: questions, one design run and plan approval before any code |
 | [0026](0026-classification-cases-and-evals.md) | Classification, resolved cases and evals |
 | [0027](0027-ticket-writes-by-a-person.md) | Ticket writes (L2) are posted by a person from the CLI |
+| [0028](0028-database-engines-by-dialect.md) | Database engines by dialect, proven by one adapter contract |
+| [0029](0029-agent-runtimes.md) | Agent runtimes: signed-in Claude Code or the Agent SDK with an API key |
+| [0030](0030-ticket-sources-and-metabase.md) | More ticket sources (JIRA Data Center) and Metabase as an integration |

@@ -4,7 +4,7 @@
 >
 > **What** Ticketsmith must do and **why**. How the code is organized: [architecture.md](architecture.md) · phases: [roadmap.md](roadmap.md) · decisions: [decisions/](decisions/).
 
-**Version:** 2.2 (2026-10-15) · generic integrations (any number of databases and repositories per project); product specifics (such as a product sharded across several databases) are project configuration, not design assumptions.
+**Version:** 2.3 (2026-10-17) · PostgreSQL next to MySQL, JIRA Data Center next to Cloud, an Agent SDK runtime and Metabase questions. Earlier (2.2): generic integrations; product specifics are project configuration, not design assumptions.
 
 ---
 
@@ -140,7 +140,12 @@ Nothing requires a ticket source: a project with only repos (or only databases) 
 - **Recommended: scoped API token** with read-only scopes (`read:jira-work`, `read:jira-user`; add `read:board-scope:jira-software` and `read:project:jira` to read boards). With scoped tokens, calls go through the gateway `https://api.atlassian.com/ex/jira/{cloudId}/rest/...`; the `cloudId` is obtained from `https://<site>.atlassian.net/_edge/tenant_info`.
 - **Alternative: classic API token** (unscoped), with calls straight to `https://<site>.atlassian.net/rest/...`. It inherits all of the user's permissions.
 - Both use Basic auth `email:token`. Tokens expire (1 year max); `doctor` warns when expiry is near, if the date was configured.
-- **Later:** OAuth 2.0 (3LO), which may require admin approval, and JIRA Data Center with a PAT (API v2, wiki markup) as a second `TicketSource` provider.
+- **JIRA Data Center / Server** (`type: jira-data-center`, ADR 0030):
+  - a personal access token sent as Bearer, against REST API v2;
+  - offset pagination, users by key;
+  - descriptions and comments in wiki markup, converted by the pure `wikiToMarkdown`; comments are written back with `markdownToWiki`;
+  - the base URL may carry a context path.
+- **Later:** OAuth 2.0 (3LO), which may require admin approval.
 
 **Endpoints (API v3):**
 
@@ -187,7 +192,7 @@ Nothing requires a ticket source: a project with only repos (or only databases) 
   - it runs from an empty temporary folder (no project's `CLAUDE.md` or settings) and without `TICKETSMITH_*` environment variables.
 - **Tools served in-process:** for each run, Ticketsmith serves its MCP tools on `127.0.0.1` (random port, random bearer token, DNS-rebinding protection), so the session vault stays in the Ticketsmith process. The agent's answer is then **revealed** for local files (`out/`): real values replace placeholders, except `[SECRET_n]`, which stay masked. Knowledge written by the agent is never revealed, because it is shared.
 - **Playbooks:** built-in `bug` and `repo-analysis`; a project overrides or adds one with `knowledge/playbooks/<name>.md`.
-- **Later: `AgentSdkRuntime`** with `@anthropic-ai/claude-agent-sdk` and an API key, for unattended or CI runs.
+- **`AgentSdkRuntime`** (`agent.runtime: sdk`, ADR 0029): the Claude Agent SDK with an Anthropic API key (keychain `anthropic-api-key`), for unattended or CI runs. It keeps the same boundary: only Ticketsmith's tools, confined file tools for code runs, no settings from disk, a structured answer, the budget and a time limit. The SDK is an optional peer dependency.
 - The subscription token is **never** extracted for use from our own code; the subscription path only invokes the official `claude` binary. Confirm Anthropic's current terms.
 - Agent output is requested as JSON (zod schema → JSON Schema) and validated; if invalid, it retries once with the error and then reports it.
 - Per-run limits in `project.yaml` (`agent.maxBudgetUsd`, default 3; `agent.timeoutMinutes`, default 20; optional `agent.model`); `process --budget` and `--model` override them. Claude Code has no max-turns flag and checks the budget between turns, so a run can end slightly above it.
@@ -220,7 +225,11 @@ Every tool call is recorded in the audit log.
 
 ### 4.6 Reports playbook (Metabase)
 - Interprets columns, filters, dates and groupings; explores the schema with `db_schema` and validates the query with `db_select` (with `LIMIT`).
-- Output: `report.sql` with Metabase parameters (`{{start_date}}`) and `notes.md` with assumptions and open questions.
+- Output: `report.sql` (the analysis' `reportSql`) with Metabase variables (`{{start_date}}`, optional filters in `[[ … ]]`), and assumptions and open questions in `analysis.md`.
+- **Metabase integration** (optional, ADR 0030):
+  - It stores the URL, an API key (`x-api-key`, in the keychain) and the mapping from project databases to Metabase database ids.
+  - `ticketsmith metabase publish <KEY>` shows the question and its guessed variables (date, number, text). After the person confirms `y/N`, it creates a native question (`POST /api/card`).
+  - The agent never gets a Metabase tool, and queries with masked placeholders are refused.
 
 ### 4.7 Service requests playbook
 - Identifies the action and measures with `db_select` the current state and how many rows would be affected.
@@ -342,6 +351,8 @@ Autonomy: steps 1–3 are L1 (files only); steps 4–6 are L3 (§4.9).
 | `ticketsmith classify <KEY>` | 10 | Classify only |
 | `ticketsmith process <KEY>` / `--next` | 6 | End-to-end processing |
 | `ticketsmith mcp` | 2 | stdio MCP server |
+| `ticketsmith project agent [--runtime claude-code\|sdk]` | 12 | What runs the agent and its limits |
+| `ticketsmith metabase publish <KEY>` | 12 | Creates a Metabase question from `report.sql` after you agree |
 | `ticketsmith db ask "<sql>" [--db\|--group]` | 4 | Runs a guarded `SELECT` on a database or a whole group |
 | `ticketsmith changes list\|show\|approve\|reject <id>` | 7 | Reviews and approves (interactively) or rejects the database changes the agent proposed |
 | `ticketsmith feature <KEY>` / `feature approve\|reject\|implement\|push\|status` | 9 | New functionality: questions, spec and plan you approve, then code and linked PRs |
@@ -361,7 +372,16 @@ Global options: `--project`, `--json` (machine-readable output), `--verbose`.
 - **Groups (optional):** databases that share a schema can be grouped. The schema is investigated once per group, and group tools can run the same read query on every member (bounded concurrency), e.g. to find which database holds an account.
 - **Network:** Ticketsmith does not manage VPNs or tunnels; connection errors are reported as "database unreachable (is the VPN/tunnel up?)" and `doctor` checks every database.
 - **Accounts:** read-only or write-capable; `doctor` reports for each database whether the account can write, as a standing reminder. Protection is the same either way (§2).
-- **First engine:** MySQL 8. Others arrive as providers with their own guard rules and the `DatabaseAdapter` contract suite.
+- **Engines:** MySQL 8 and PostgreSQL (ADR 0028). Others arrive as providers with their own guard rules and must pass the `DatabaseAdapter` contract suite.
+- **PostgreSQL read guard:**
+  - It uses the same two layers with the PostgreSQL grammar. Dollar-quoted strings are understood.
+  - Nested comments, backslashes in strings and `$1` parameters are rejected.
+  - Waiting, file, lock, sequence and SQL-from-text functions are denied (`pg_sleep*`, `pg_read_file`, `lo_*`, `dblink*`, `set_config`, `nextval`, `pg_advisory_*`, `query_to_xml`…). `COPY` and locking reads do not parse.
+  - Unquoted names are folded to lower case before the SQL is regenerated.
+- **Execution (`PostgresDatabaseAdapter`):**
+  - Sessions default to read-only. Reads run in `BEGIN READ ONLY` with `statement_timeout` and the configured `search_path`, and always `ROLLBACK`.
+  - Each call runs one statement through the extended protocol, which refuses batches.
+  - Approved changes run in `BEGIN READ WRITE` and commit only on the expected row count, returning inserted keys.
 
 > **Example:** 7 shards (`shard1` … `shard7`), one MySQL 8 database each, all in one group because they share the schema, reachable only through the company VPN, accessed with the user's read/write account (no delete). Tickets usually name the shard; otherwise a group lookup finds the account.
 
@@ -409,7 +429,7 @@ Always: Node 24 (via `fnm`) and pnpm; Claude Code installed and logged in.
 ## 9. Open questions
 
 1. ~~Which data is sensitive and must be masked?~~ Resolved: emails, phones, RFC/CURP, CLABE, cards and secrets; names stay visible (§4.5).
-2. Metabase only for pasting queries, or creating questions via API later?
+2. ~~Metabase only for pasting queries, or creating questions via API later?~~ Resolved: both; `metabase publish` creates the question after a person agrees (§4.6).
 3. ~~Company policy on LLMs with tickets, data and code?~~ Resolved for the first project: the company provides Claude and already uses it with its information and databases. Each team must check its own policy.
 4. Is there a read replica of the DB?
 5. Will there be customers besides your company (a second project) in the short term?

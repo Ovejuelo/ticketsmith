@@ -7,12 +7,13 @@
 | `kernel/` | `Result`, `AppError`, logger. Depends on nothing |
 | `publishing/` | Posting a comment or a transition after the person confirms it (shared by `comment`, `transition` and `process`) |
 | `classification/` | `ticket-types.md` (schema, loader, onboarding draft), `classifyByRules`, the LLM fallback and the person's decision (`resolveClassification`) |
-| `agent/` | `AgentRuntime` port with `providers/claude-code` (headless, MCP tools only), built-in playbooks, output schemas, `runStructured` (validate + one retry) |
+| `agent/` | `AgentRuntime` port with `providers/claude-code` (headless, MCP tools only) and `providers/agent-sdk` (API key, same boundary), built-in playbooks, output schemas, `runStructured` (validate + one retry) |
 | `project/` | `Project` model with optional integrations, `project.yaml` store, paths, migration of phase-1 profiles |
 | `secrets/` | `SecretStore` port with `providers/keyring` and `providers/env` |
 | `storage/` | Per-project SQLite (`node:sqlite`): onboarding steps and the investigated catalog |
 | `knowledge/` | Masked Markdown writer and the project brief |
-| `tickets/` | `Ticket` model, `TicketSource` port, ADF→Markdown, JIRA Cloud (`providers/jira-cloud`) |
+| `tickets/` | `Ticket` model, `TicketSource` and `TicketWriter` ports, ADF and wiki markup ↔ Markdown, JIRA Cloud (`providers/jira-cloud`) and Data Center (`providers/jira-data-center`) |
+| `metabase/` | `MetabaseClient` port with `providers/http` (API key), `templateTags` from `{{variables}}`, `REPORT_FILE` |
 | `database/` | Fail-closed read and write guards per dialect (`sql-dialect.ts`: MySQL, PostgreSQL), read-only preflight with rollback scripts, change requests (`ChangeStore`), `DatabaseAdapter` port (`executeChange` only takes an `ApprovedChange`), schema catalog types and shared introspection, `providers/mysql`, `providers/postgres` |
 | `repos/` | Git without a shell (clone, fetch, and reads from git objects only), dedicated clones, ticket worktrees and branch rules, `PullRequestHost` port with `providers/github` and `providers/bitbucket-cloud` |
 | `security/` | Masking and the session placeholder vault |

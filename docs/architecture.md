@@ -14,11 +14,11 @@ flowchart LR
   end
   bootstrap --> features
   subgraph features[features/ — what Ticketsmith does]
-    projects & doctor & tickets & process & dbs[databases] & changes & code & repos & know[knowledge] & mcpf[mcp]
+    projects & doctor & tickets & process & dbs[databases] & changes & mbf[metabase] & code & repos & know[knowledge] & mcpf[mcp]
   end
   features --> core
   subgraph core[core/ — reusable building blocks]
-    project & secrets & tix[tickets] & dbk[database] & repok[repos] & agent & security & storage & knowledge & audit & output & clik[cli] & mcpk[mcp] & services & feature
+    project & secrets & tix[tickets] & dbk[database] & repok[repos] & agent & mb[metabase] & security & storage & knowledge & audit & output & clik[cli] & mcpk[mcp] & services & feature
   end
   core --> kernel[core/kernel — Result, errors, logger]
 ```
@@ -48,14 +48,15 @@ src/
 │   ├── mcp-server.ts             registers every feature's tools; masks and audits all calls
 │   └── tool-session.ts           one tool session per project: stdio for `mcp`, local HTTP for agent runs
 ├── features/                     one folder per capability (see features/README.md)
-│   ├── projects/                 project init|status|refresh|add|remove|list|use|show|link|export|import, jira discover
+│   ├── projects/                 project init|status|refresh|add|remove|agent|list|use|show|link|export|import, jira discover
 │   ├── doctor/                   doctor
-│   ├── tickets/                  list, show + MCP tools jira_get_issue, jira_search
+│   ├── tickets/                  list, show, comment, transition + MCP tools jira_get_issue, jira_search
 │   ├── databases/                db ask + MCP tools db_select, db_select_group, db_schema
 │   ├── repos/                    MCP tools repo_list, repo_files, repo_search, repo_read
 │   ├── knowledge/                MCP tools knowledge_read, knowledge_search
 │   ├── process/                  process <KEY> | --next: the agent investigates a ticket
 │   ├── changes/                  changes list|show|approve|reject: the human decides on proposed DB changes
+│   ├── metabase/                 metabase publish <KEY>: report.sql as a Metabase question, after you agree
 │   ├── classify/                 classify <KEY>
 │   ├── evals/                    eval add <KEY>, eval [--full]
 │   ├── code/                     code <KEY>|push|status|discard, feature <KEY>|approve|reject|implement|push|status + MCP code_run_tests, code_diff
@@ -64,19 +65,20 @@ src/
     ├── kernel/                   Result, AppError, logger
     ├── publishing/               confirmed ticket writes (comments, transitions), audited by hash
     ├── classification/           ticket-types.md, rules, LLM fallback, the person's decision
-    ├── agent/                    AgentRuntime port, Claude Code headless provider, playbooks, output schemas
+    ├── agent/                    AgentRuntime port, Claude Code headless and Agent SDK providers, playbooks, output schemas
     ├── project/                  Project model (optional integrations), project.yaml store, paths, profile migration
     ├── secrets/                  SecretStore port + keychain/env providers
     ├── storage/                  per-project SQLite (node:sqlite): onboarding steps, investigated catalog
     ├── knowledge/                masked Markdown writer, project brief
-    ├── tickets/                  Ticket model, TicketSource port, ADF→Markdown, jira-cloud provider
+    ├── tickets/                  Ticket model, TicketSource/TicketWriter ports, ADF and wiki ↔ Markdown, jira-cloud + jira-data-center providers
+    ├── metabase/                 MetabaseClient port + http provider, template tags from {{variables}}
     ├── database/                 read and write guards per dialect, preflight, change requests, DatabaseAdapter port, mysql + postgres providers
     ├── repos/                    git (no shell, reads from git objects), dedicated clones, ticket worktrees, PullRequestHost port + github/bitbucket-cloud providers
     ├── security/                 masking and the session placeholder vault
     ├── audit/                    AuditLog port + JSONL implementation
     ├── output/                   per-ticket output files
     ├── services/                 Services (what features get from outside) + DatabaseConnections (lazy, closes pools)
-    ├── cli/                      command contracts, IO, prompts, option parsing, openProject, requireTickets
+    ├── cli/                      command contracts, IO, prompts, option parsing, openProject, requireTickets/Databases/Metabase
     ├── mcp/                      tool contract (defineTool, ToolContext)
     └── feature/                  the Feature type
 

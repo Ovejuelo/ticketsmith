@@ -1,10 +1,23 @@
 # Ticketsmith
 
-Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA Cloud and data from your databases through a local MCP server and CLI, so Claude can investigate a ticket and prepare the work for you: analysis, queries and replies.
+Ticketsmith lets Claude work on your tickets. It reads tickets from JIRA (Cloud or Data Center) and data from your databases (MySQL, PostgreSQL) through a local MCP server and CLI, so Claude can investigate a ticket and prepare the work for you: analysis, queries and replies.
 
 It is **safe by construction**. Claude never gets credentials or a raw connection. Every database read goes through a guard that fails closed and runs in a read-only session. Sensitive values are masked before they reach the model. Anything that writes always needs a human's approval, outside the model.
 
-> **Status:** v0.11. Tickets (JIRA Cloud), database reads (MySQL 8), code reading across your repositories, end-to-end ticket investigation (`ticketsmith process`), human-approved database changes, code fixes with tests and pull requests (`ticketsmith code`) new functionality with a design checkpoint (`ticketsmith feature`), classification with resolved cases and evals, and JIRA comments and transitions you confirm (`ticketsmith comment` / `transition`) work today. More database engines, ticket sources and runtimes are next; see the [roadmap](docs/roadmap.md).
+> **Status:** v0.12. These work today:
+> - tickets from JIRA Cloud or Data Center;
+> - database reads on MySQL 8 and PostgreSQL;
+> - code reading across your repositories;
+> - end-to-end ticket investigation (`ticketsmith process`);
+> - human-approved database changes;
+> - code fixes with tests and pull requests (`ticketsmith code`);
+> - new functionality with a design checkpoint (`ticketsmith feature`);
+> - classification with resolved cases and evals;
+> - JIRA comments and transitions you confirm (`ticketsmith comment` / `transition`);
+> - report queries published as Metabase questions (`ticketsmith metabase publish`);
+> - agent runs with your Claude Code login or the Agent SDK with an API key.
+>
+> See the [roadmap](docs/roadmap.md).
 
 ## Install
 
@@ -54,7 +67,8 @@ Everything happens inside a **project**, one per product you support (e.g. `bill
 ticketsmith project init              # guided, resumable onboarding: configure, verify and investigate
 ticketsmith project status            # what is configured, investigated or pending
 ticketsmith project refresh           # investigate again and rebuild knowledge/brief.md
-ticketsmith project add|remove tickets|databases|repos
+ticketsmith project add|remove tickets|databases|repos|metabase
+ticketsmith project agent             # what runs the agent (Claude Code or the Agent SDK) and its limits
 ticketsmith doctor                    # check every configured integration
 ticketsmith jira discover             # pick the JIRA project/board and save the JQL
 ticketsmith list --limit 20           # prioritized open tickets
@@ -64,6 +78,7 @@ ticketsmith db ask "SELECT id FROM accounts WHERE email = 'x@acme.com'" --group 
 ticketsmith process OPS-123           # the agent investigates: out/OPS-123/analysis.md + jira_comment.md
 ticketsmith process --next            # the next ticket of the JQL without an analysis
 ticketsmith project refresh repos --deep  # the agent writes knowledge/repos/<name>.analysis.md
+ticketsmith metabase publish OPS-124  # out/OPS-124/report.sql as a Metabase question, after you agree
 ticketsmith mcp                       # the MCP server (the plugin runs it for you)
 ```
 
@@ -92,9 +107,11 @@ Tools only appear when the project has the integration they need. Without the pl
 
 Create an **API token with scopes** at https://id.atlassian.com/manage-profile/security/api-tokens with the read-only scopes `read:jira-work` and `read:jira-user`. Add `read:board-scope:jira-software` and `read:project:jira` if you want to read boards. Classic tokens also work but inherit all your permissions; `doctor` warns about them. `TICKETSMITH_JIRA_TOKEN` overrides the keychain for scripts.
 
+**JIRA Data Center / Server:** choose it in `project add tickets` (or `--deployment data-center --site https://jira.acme.com`) and use a **personal access token** (your avatar → Profile → Personal Access Tokens). It acts with your permissions, so a read-only account is safest. Descriptions and comments in wiki markup are converted to Markdown.
+
 ### Databases
 
-`project add databases` asks for each database's host, port, database name and user, and stores the password in the keychain (`TICKETSMITH_DB_<NAME>` for scripts). Databases that share a schema form a group: the schema is investigated once, and `db_select_group` can search all of them. VPNs and tunnels are up to you; `doctor` tells you which database is unreachable.
+`project add databases` asks for each database's engine (MySQL or PostgreSQL; `--engine postgres` in scripts), host, port, database name and user (and the schema for PostgreSQL), and stores the password in the keychain (`TICKETSMITH_DB_<NAME>` for scripts). Databases that share a schema form a group: the schema is investigated once, and `db_select_group` can search all of them. VPNs and tunnels are up to you; `doctor` tells you which database is unreachable.
 
 ### Fixing code
 
@@ -137,6 +154,21 @@ ticketsmith feature push OPS-123         # asks per repository; PRs name the tic
 
 Schema changes come as migration files in the repository for review; Ticketsmith never runs DDL against your databases.
 
+### Agent runtime
+
+By default the agent runs on your signed-in Claude Code. For unattended runs (CI, scheduled evals), switch a project to the Claude Agent SDK with an Anthropic API key:
+
+```sh
+npm i ticketsmith @anthropic-ai/claude-agent-sdk   # the SDK is optional and large; install it next to Ticketsmith
+npx ticketsmith project agent --runtime sdk        # asks for the API key once (keychain), or set TICKETSMITH_ANTHROPIC_API_KEY
+```
+
+The SDK gets the same boundary as Claude Code: only Ticketsmith's tools, no shell, no settings from disk, a budget and a time limit.
+
+### Metabase reports
+
+`project add metabase` stores the Metabase URL, an API key (Admin → Settings → Authentication → API keys) and which Metabase database each project database is. For a report ticket, `ticketsmith process OPS-124 --playbook report` writes `out/OPS-124/report.sql` with Metabase variables such as `{{start_date}}`. Then `ticketsmith metabase publish OPS-124` shows the question, its database and the variables it guessed (dates, numbers, text). After you agree, it creates the question in your collection. The agent never talks to Metabase.
+
 ### Approved database changes
 
 Mark a database with `allowChanges: true` (or answer yes in `project add databases`) and the agent can propose one `INSERT … VALUES` or `UPDATE … WHERE` per change, typically with `ticketsmith process OPS-123 --playbook service-request`. Nothing runs until you decide:
@@ -148,7 +180,7 @@ ticketsmith changes approve cr-1a2b3c4d  # interactive: re-checks, then you type
 ticketsmith changes reject cr-1a2b3c4d --reason "not needed"
 ```
 
-Approval re-runs the checks (the data may have moved), runs the statement in a transaction and commits only if MySQL affects exactly the rows you saw; otherwise it rolls back. The SQL, the rollback script and the result are saved to `out/<KEY>/change-<id>/`. Proposals expire after an hour; `changes.maxRows` (default 100) caps each change.
+Approval re-runs the checks (the data may have moved), runs the statement in a transaction and commits only if the database affects exactly the rows you saw; otherwise it rolls back. The SQL, the rollback script and the result are saved to `out/<KEY>/change-<id>/`. Proposals expire after an hour; `changes.maxRows` (default 100) caps each change.
 
 ### Repositories
 

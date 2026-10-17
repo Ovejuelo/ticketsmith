@@ -14,8 +14,9 @@
 | **8. Code changes (L3)** (live check pending) | `ticketsmith code <KEY>`: worktree and branch per ticket from the fix branch, file tools confined to it (no shell), `code_run_tests`/`code_diff`, tests re-run by Ticketsmith, ask-before-push, PRs through GitHub or Bitbucket Cloud APIs or a link for any other host | Bugs fixed with human review |
 | **9. New functionality** (live check pending) | Feature playbook: spec + clarifying questions → design plan the human approves → coordinated back/front worktrees from the feature base branch → new tests → schema changes as migration files → ask before PRs (requirements §4.15) | New functionality tickets implemented end to end with two human checkpoints |
 | **10. Classification + knowledge + evals** (live check pending) | Rules + LLM, `classify`, `knowledge add`, golden set, `eval` | Measure before raising autonomy |
-| **11. Reports, service requests, L2 JIRA** (live check pending) | Playbooks, `jira_add_comment`/`jira_transition` with confirmation | |
-| **12. Extension** | `AgentSdkRuntime`, JIRA Data Center, OAuth, other DB engines + contract suites, Metabase API | |
+| **11. Reports, service requests, L2 JIRA** (live check pending) | `ticketsmith comment`/`transition` posted by a person with `y/N` (no agent write tools), `allowWrites` per ticket source, `markdownToAdf`, suggested transitions | The agent's reply reaches the ticket after you read it |
+| **12. Extension** (partly live-checked) | PostgreSQL with dialect-aware guards and one adapter contract suite for MySQL and PostgreSQL (verified on PostgreSQL 17); `AgentSdkRuntime` (`project agent`; live check pending with an API key); JIRA Data Center (`wikiToMarkdown`/`markdownToWiki`; live check pending on a real server); Metabase integration and `metabase publish` (verified against Metabase 0.56 in Docker) | More teams can use it: other engines, self-hosted JIRA, CI runs, Metabase questions |
+| **Later** | OAuth 2.0 for JIRA, more database engines and pull request hosts | |
 
 Each later phase also adds its own onboarding step (databases in 4, repositories in 5).
 
