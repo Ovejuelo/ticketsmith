@@ -25,6 +25,27 @@ describe('DatabaseConnections', () => {
     expect(cli.databases.get('shard2').disposed).toBe(true)
   })
 
+  it('opens one adapter when two calls race for the same database, and closes it', async () => {
+    const connections = new DatabaseConnections(cli.services, project)
+    const [first, second] = await Promise.all([
+      connections.connect('shard1'),
+      connections.connect('shard1'),
+    ])
+    expect(first.ok && second.ok && first.value === second.value).toBe(true)
+    expect(cli.databases.connections).toEqual([{ name: 'shard1', password: 'pw-shard1' }])
+
+    await connections[Symbol.asyncDispose]()
+    expect(cli.databases.get('shard1').disposed).toBe(true)
+  })
+
+  it('tries again after a failed connection', async () => {
+    cli.secrets.values.delete('acme/db-shard1')
+    const connections = new DatabaseConnections(cli.services, project)
+    expect((await connections.connect('shard1')).ok).toBe(false)
+    cli.secrets.values.set('acme/db-shard1', 'pw-shard1')
+    expect((await connections.connect('shard1')).ok).toBe(true)
+  })
+
   it('resolves groups and explains unknown names', () => {
     const connections = new DatabaseConnections(cli.services, project)
     expect(connections.resolveTarget('shards')).toMatchObject({

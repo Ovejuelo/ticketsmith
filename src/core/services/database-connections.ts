@@ -18,7 +18,8 @@ export class DatabaseConnections implements AsyncDisposable {
   readonly #services: Services
   readonly #project: string
   readonly #configs: readonly DatabaseConfig[]
-  readonly #open = new Map<string, DatabaseAdapter>()
+  // Promises, not adapters: two calls racing for the same database must share one pool.
+  readonly #open = new Map<string, Promise<Result<DatabaseAdapter, string>>>()
 
   constructor(services: Services, project: Project) {
     this.#services = services
@@ -42,9 +43,32 @@ export class DatabaseConnections implements AsyncDisposable {
     return database !== undefined ? ok([database]) : err(this.#unknown(name))
   }
 
-  async connect(name: string): Promise<Result<DatabaseAdapter, string>> {
+  connect(name: string): Promise<Result<DatabaseAdapter, string>> {
     const cached = this.#open.get(name)
-    if (cached !== undefined) return ok(cached)
+    if (cached !== undefined) return cached
+    const opening = this.#openAdapter(name)
+    this.#open.set(name, opening)
+    // A failure (e.g. no password yet) is not cached, so a later call can try again.
+    void opening.then((result) => {
+      if (!result.ok && this.#open.get(name) === opening) this.#open.delete(name)
+    })
+    return opening
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    const opening = [...this.#open.values()]
+    this.#open.clear()
+    const results = await Promise.allSettled(opening)
+    await Promise.allSettled(
+      results.flatMap((settled) =>
+        settled.status === 'fulfilled' && settled.value.ok
+          ? [settled.value.value[Symbol.asyncDispose]()]
+          : [],
+      ),
+    )
+  }
+
+  async #openAdapter(name: string): Promise<Result<DatabaseAdapter, string>> {
     const config = this.#configs.find((candidate) => candidate.name === name)
     if (config === undefined) return err(this.#unknown(name))
 
@@ -55,15 +79,7 @@ export class DatabaseConnections implements AsyncDisposable {
         `No password stored for database "${name}". Run \`ticketsmith project add databases\` or set ${secretEnvVariable(databaseSecret(name))}.`,
       )
     }
-    const adapter = this.#services.connectDatabase(config, secret.value.value)
-    this.#open.set(name, adapter)
-    return ok(adapter)
-  }
-
-  async [Symbol.asyncDispose](): Promise<void> {
-    const adapters = [...this.#open.values()]
-    this.#open.clear()
-    await Promise.allSettled(adapters.map((adapter) => adapter[Symbol.asyncDispose]()))
+    return ok(this.#services.connectDatabase(config, secret.value.value))
   }
 
   #unknown(name: string): string {
