@@ -39,7 +39,13 @@ export class ChangeStore {
     } catch {
       return err(`No change ${valid.data}. List them with \`ticketsmith changes list\`.`)
     }
-    const parsed = ChangeRequestSchema.safeParse(JSON.parse(text))
+    let json: unknown
+    try {
+      json = JSON.parse(text)
+    } catch {
+      return err(`Change ${valid.data} is unreadable: it is not valid JSON.`)
+    }
+    const parsed = ChangeRequestSchema.safeParse(json)
     return parsed.success
       ? ok(parsed.data)
       : err(`Change ${valid.data} is unreadable: ${parsed.error.message}`)
