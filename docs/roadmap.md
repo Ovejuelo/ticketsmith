@@ -16,8 +16,22 @@
 | **10. Classification + knowledge + evals** (live check pending) | Rules + LLM, `classify`, `knowledge add`, golden set, `eval` | Measure before raising autonomy |
 | **11. Reports, service requests, L2 JIRA** (live check pending) | `ticketsmith comment`/`transition` posted by a person with `y/N` (no agent write tools), `allowWrites` per ticket source, `markdownToAdf`, suggested transitions | The agent's reply reaches the ticket after you read it |
 | **12. Extension** (partly live-checked) | PostgreSQL with dialect-aware guards and one adapter contract suite for MySQL and PostgreSQL (verified on PostgreSQL 17); `AgentSdkRuntime` (`project agent`; live check pending with an API key); JIRA Data Center (`wikiToMarkdown`/`markdownToWiki`; live check pending on a real server); Metabase integration and `metabase publish` (verified against Metabase 0.56 in Docker) | More teams can use it: other engines, self-hosted JIRA, CI runs, Metabase questions |
-| **Later** | OAuth 2.0 for JIRA, more database engines and pull request hosts | |
 
 Each later phase also adds its own onboarding step (databases in 4, repositories in 5).
+
+## Next
+
+What we would build next, in this order. Each phase must keep the design goals of the requirements: secure by construction, useful the same day, a new provider is a folder, measurable, simple. Every integration is optional and read-only for the agent; anything that writes goes through a person, as in phases 7, 8 and 11.
+
+| Phase | Deliverable | Why it matters |
+|---|---|---|
+| **13. Trust and contributors** | Close the live checks of phases 5–12. Write `SECURITY.md`: threat model (what the agent can and cannot reach, masking limits, prompt injection from ticket text) and how to report a vulnerability. Write `CONTRIBUTING.md`: setup in one command, how to add a provider, the definition of done. **Contract suites** for `TicketSource`, `TicketWriter` and `PullRequestHost`, like the database one: a provider is done when it passes them. Issue templates and labelled starter issues. Coverage in CI. | People trust and extend what they can verify. Contract suites turn "add a provider" into a clear, reviewable task for newcomers. |
+| **14. Observability for bugs** | **Sentry** (issues, events and stack traces for the error a ticket mentions, mapped to `repo/file:line`). **Log search** through one port with **Grafana Loki** and **Datadog** providers: bounded time windows, row limits, masked output. MCP tools `errors_*` and `logs_search`, read-only. | The fastest path from "it fails" to the cause is usually the error tracker and the logs, not the code. This makes the bug playbook much stronger. |
+| **15. More ticket sources** | **GitHub Issues**, **Linear** and **Zendesk**, each a `TicketSource` provider passing the contract suite, with optional writers for L2 comments. **JIRA OAuth 2.0 (3LO)** for companies that forbid API tokens. | Ticketsmith becomes useful to open-source maintainers, product teams and support desks, not only JIRA users. |
+| **16. More code hosts and engines** | **GitLab** (cloud and self-managed) and **Azure DevOps** pull requests; **Bitbucket Data Center**. **SQL Server** and **MariaDB** as database dialects passing the adapter contract. Optional **read replica** per database for reads (requirements, open question 4). | These cover most company setups. Each one is a provider plus contract runs, with no changes to the core. |
+| **17. Team knowledge** | **Confluence** and **Notion** as read-only knowledge sources (runbooks, specs), searchable through `knowledge_search` and masked like everything else. **Slack**: read the threads linked from a ticket, masked; optionally post a short "run finished" notice to a channel the project names. | The answer to a ticket often lives in a runbook or a thread. The agent should find it, not the person. |
+| **18. Runs at scale** | `ticketsmith watch`: on a schedule or in CI with the Agent SDK runtime, process new tickets into drafts (`out/`, never posted). Autonomy levels enforced per ticket type from `ticket-types.md`. A local HTML report of runs and evals: cost, time, accuracy and regressions per playbook. | Teams can let it prepare work overnight and measure whether it is getting better, before granting more autonomy. |
+
+**Not planned:** tools that let the agent write on its own (posting, merging, running SQL without approval), DELETE or DDL against databases, and integrations whose only purpose is to move data out of the company. These go against the security principles and will not be accepted as contributions.
 
 One phase at a time, each planned and approved before coding (see `CLAUDE.md`). A phase is done when `pnpm check` is green and it was verified against the real systems.
