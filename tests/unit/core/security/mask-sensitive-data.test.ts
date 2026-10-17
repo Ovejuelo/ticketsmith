@@ -81,6 +81,20 @@ describe('maskSensitiveData', () => {
     ).toBe('Write to [EMAIL_1]: urgent (cc [EMAIL_2]). Thanks, [EMAIL_1].')
   })
 
+  it.each([
+    ['password=abc[12345', 'password=[SECRET_1]'],
+    ['token: s3cr[et-value', 'token: [SECRET_1]'],
+    ['mysql://u:pa[ss@host/db', 'mysql://u:[SECRET_1]@host/db'],
+  ])('masks secrets that contain "[" (%s)', (text, expected) => {
+    expect(mask(text).text).toBe(expected)
+  })
+
+  it('leaves values that already hold a placeholder alone', () => {
+    expect(mask('password=[SECRET_7] Bearer [SECRET_8]').text).toBe(
+      'password=[SECRET_7] Bearer [SECRET_8]',
+    )
+  })
+
   it('only runs the enabled detectors', () => {
     const result = maskSensitiveData('a@x.com +52 55 1234 5678', {
       detectors: ['phone'],

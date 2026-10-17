@@ -154,7 +154,9 @@ const DETECTORS: Readonly<Record<MaskKind, Detector>> = {
   },
 }
 
-const PLACEHOLDER = /^\[[A-Z0-9_]+_\d+\]$/
+// A placeholder somewhere in a match: it was masked already, so the match is left alone. A bare
+// "[" is not enough, or `password=abc[123` would stay visible.
+const CONTAINS_PLACEHOLDER = /\[[A-Z0-9_]+_\d+\]/
 
 export const isValidClabe = (value: string): boolean => {
   if (!/^\d{18}$/.test(value)) return false
@@ -226,11 +228,7 @@ export const maskSensitiveData = (
     const label = detector.name.toUpperCase()
     for (const pattern of detector.patterns) {
       masked = masked.replace(pattern, (match) => {
-        if (
-          PLACEHOLDER.test(match) ||
-          match.includes('[') ||
-          !(detector.validate?.(match) ?? true)
-        ) {
+        if (CONTAINS_PLACEHOLDER.test(match) || !(detector.validate?.(match) ?? true)) {
           return match
         }
         const placeholder = registry.placeholderFor(
