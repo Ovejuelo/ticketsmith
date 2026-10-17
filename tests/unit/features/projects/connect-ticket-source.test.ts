@@ -59,6 +59,7 @@ describe('connectTicketSource', () => {
       jql: 'project = OPS',
       boardId: 245,
     })
-    expect(project.integrations.tickets?.cloudId).toBeUndefined()
+    const tickets = project.integrations.tickets
+    expect(tickets?.type === 'jira-cloud' && tickets.cloudId).toBeUndefined()
   })
 })

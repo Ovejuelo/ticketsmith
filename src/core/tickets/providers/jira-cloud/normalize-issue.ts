@@ -12,6 +12,8 @@ import type { JiraComment, JiraIssue, JiraSearchIssue } from './jira-api.schemas
 
 export type NormalizeContext = {
   readonly siteUrl: string
+  /** How plain-string rich text is written: Data Center sends wiki markup (default: as is). */
+  readonly wikiToMarkdown?: ((wiki: string) => string) | undefined
   /** Readable alias → custom field id. */
   readonly customFields: Readonly<Record<string, string>>
 }
@@ -24,7 +26,7 @@ export const normalizeIssue = (
   const { fields } = issue
   return validate(TicketSchema, {
     ...summaryFields(issue.key, fields, context.siteUrl),
-    description: richTextToMarkdown(fields.description),
+    description: richTextToMarkdown(fields.description, context.wikiToMarkdown),
     labels: fields.labels,
     components: fields.components.map((component) => component.name),
     reporter: person(fields.reporter),
@@ -33,7 +35,7 @@ export const normalizeIssue = (
       id: comment.id,
       author: person(comment.author),
       created: toIsoUtc(comment.created),
-      body: richTextToMarkdown(comment.body),
+      body: richTextToMarkdown(comment.body, context.wikiToMarkdown),
     })),
     attachments: fields.attachment.map((attachment) => ({
       ...attachment,
@@ -88,9 +90,9 @@ export const toIsoUtc = (value: string): string => {
   return Number.isNaN(date.getTime()) ? value : date.toISOString()
 }
 
-// API v3 returns ADF; plain strings (older fields, Data Center) pass through.
-const richTextToMarkdown = (value: unknown): string => {
-  if (typeof value === 'string') return value
+// API v3 returns ADF; plain strings are wiki markup on Data Center and pass through otherwise.
+const richTextToMarkdown = (value: unknown, fromWiki?: (wiki: string) => string): string => {
+  if (typeof value === 'string') return fromWiki === undefined ? value : fromWiki(value)
   const adf = AdfNodeSchema.safeParse(value)
   return adf.success ? adfToMarkdown(adf.data) : ''
 }

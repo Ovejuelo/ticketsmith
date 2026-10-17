@@ -8,7 +8,8 @@ export type Query = Readonly<Record<string, string | number | undefined>>
 export type JiraHttpClientOptions = {
   /** Site URL for classic tokens, or https://api.atlassian.com/ex/jira/{cloudId} for scoped ones. */
   readonly baseUrl: string
-  readonly email: string
+  /** Cloud: Basic `email:token`. Without an email (Data Center personal access token): Bearer. */
+  readonly email?: string | undefined
   readonly token: string
   readonly logger: Logger
   readonly fetch?: FetchFn
@@ -21,7 +22,7 @@ export type JiraHttpClientOptions = {
 const MAX_BACKOFF_MS = 30_000
 const MAX_RETRY_AFTER_MS = 60_000
 
-/** Read-only JIRA REST client: Basic auth, timeouts, retries on transient errors, zod-validated responses. */
+/** JIRA REST client (Cloud and Data Center): auth, timeouts, retries on transient reads, zod-validated responses. */
 export class JiraHttpClient {
   readonly #baseUrl: string
   readonly #authorization: string
@@ -34,7 +35,10 @@ export class JiraHttpClient {
 
   constructor(options: JiraHttpClientOptions) {
     this.#baseUrl = options.baseUrl.replace(/\/+$/, '')
-    this.#authorization = `Basic ${Buffer.from(`${options.email}:${options.token}`).toString('base64')}`
+    this.#authorization =
+      options.email === undefined
+        ? `Bearer ${options.token}`
+        : `Basic ${Buffer.from(`${options.email}:${options.token}`).toString('base64')}`
     this.#logger = options.logger
     this.#fetch = options.fetch ?? fetch
     this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))

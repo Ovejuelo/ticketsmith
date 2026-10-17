@@ -65,6 +65,12 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
   new Command('add')
     .description('Add (or reconfigure) an integration, then investigate it')
     .addArgument(integrationArgument())
+    .addOption(
+      new Option(
+        '--deployment <kind>',
+        'tickets: JIRA Cloud or Data Center (default cloud)',
+      ).choices(['cloud', 'data-center']),
+    )
     .option('--site <url>', 'tickets: JIRA site (non-interactive)')
     .option('--email <email>', 'tickets: Atlassian account email (non-interactive)')
     .addOption(

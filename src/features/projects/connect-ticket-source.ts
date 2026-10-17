@@ -10,14 +10,25 @@ import { describeSecretError } from '../../core/secrets/index.ts'
 import type { Services } from '../../core/services/index.ts'
 import { describeTicketSourceError, type SourceIdentity } from '../../core/tickets/index.ts'
 
-export type JiraConnectionInput = {
-  readonly siteUrl: string
-  readonly email: string
-  readonly auth: JiraAuthKind
-  readonly token: string
-  /** L2 writes from the CLI; unchanged when omitted. */
-  readonly allowWrites?: boolean | undefined
-}
+export type JiraDeployment = 'cloud' | 'data-center'
+
+export type JiraConnectionInput =
+  | {
+      readonly deployment?: 'cloud'
+      readonly siteUrl: string
+      readonly email: string
+      readonly auth: JiraAuthKind
+      readonly token: string
+      /** L2 writes from the CLI; unchanged when omitted. */
+      readonly allowWrites?: boolean | undefined
+    }
+  | {
+      /** JIRA Data Center / Server: a personal access token, no email. */
+      readonly deployment: 'data-center'
+      readonly siteUrl: string
+      readonly token: string
+      readonly allowWrites?: boolean | undefined
+    }
 
 export type ConnectedTicketSource = {
   readonly project: Project
@@ -29,7 +40,7 @@ export const emptyProject = (name: string): Project =>
   ProjectSchema.parse({ version: 2, name, integrations: {} })
 
 /**
- * Adds (or replaces) the project's JIRA ticket source. Verifies the credentials before
+ * Adds (or replaces) the project's JIRA ticket source (Cloud or Data Center). Verifies the credentials before
  * persisting anything, then stores the token and saves the project. Reconnecting to the same
  * site keeps the previous discovery settings (JIRA project, board, JQL, custom fields).
  */
@@ -40,30 +51,33 @@ export const connectTicketSource = async (
   options: { readonly storeToken: boolean },
 ): Promise<ConnectedTicketSource> => {
   const previous = project.integrations.tickets
-  const kept = previous?.siteUrl === input.siteUrl ? previous : undefined
+  const type = input.deployment === 'data-center' ? 'jira-data-center' : 'jira-cloud'
+  const kept = previous?.siteUrl === input.siteUrl && previous.type === type ? previous : undefined
+  const shared = {
+    siteUrl: input.siteUrl,
+    projectKey: kept?.projectKey,
+    boardId: kept?.boardId,
+    jql: kept?.jql,
+    customFields: kept?.customFields ?? {},
+    allowWrites: input.allowWrites ?? previous?.allowWrites ?? false,
+  }
 
-  const cloudId =
-    input.auth === 'scoped'
-      ? orFail(await services.resolveCloudId(input.siteUrl), describeTicketSourceError)
-      : undefined
-
+  const config =
+    input.deployment === 'data-center'
+      ? { type, ...shared }
+      : {
+          type,
+          ...shared,
+          email: input.email,
+          auth: input.auth,
+          cloudId:
+            input.auth === 'scoped'
+              ? orFail(await services.resolveCloudId(input.siteUrl), describeTicketSourceError)
+              : undefined,
+        }
   const parsed = ProjectSchema.safeParse({
     ...project,
-    integrations: {
-      ...project.integrations,
-      tickets: {
-        type: 'jira-cloud',
-        siteUrl: input.siteUrl,
-        email: input.email,
-        auth: input.auth,
-        cloudId,
-        projectKey: kept?.projectKey,
-        boardId: kept?.boardId,
-        jql: kept?.jql,
-        customFields: kept?.customFields ?? {},
-        allowWrites: input.allowWrites ?? previous?.allowWrites ?? false,
-      },
-    },
+    integrations: { ...project.integrations, tickets: config },
   })
   if (!parsed.success) fail(`Invalid ticket source:\n${z.prettifyError(parsed.error)}`)
   const updated = parsed.data

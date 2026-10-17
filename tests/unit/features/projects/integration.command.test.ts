@@ -28,6 +28,32 @@ describe('ticketsmith project add|remove', () => {
     expect(cli.stdout).toContain('tickets ready in project "acme"')
   })
 
+  it('adds a JIRA Data Center source with its context path and a personal access token', async () => {
+    await cli.withProject(testProject(null))
+    await cli.secrets.set({ project: 'acme', name: 'jira-token' }, 'pat')
+    expect(
+      (await cli.run('project', 'add', 'tickets', '--deployment', 'data-center'))?.message,
+    ).toMatch(/needs --site/)
+    expect(
+      await cli.run(
+        'project',
+        'add',
+        'tickets',
+        '--deployment',
+        'data-center',
+        '--site',
+        'https://jira.example.com/jira/',
+      ),
+    ).toBeNull()
+    expect((await load()).integrations.tickets).toEqual({
+      type: 'jira-data-center',
+      siteUrl: 'https://jira.example.com/jira',
+      customFields: {},
+      allowWrites: false,
+    })
+    expect(cli.connections.at(-1)?.token).toBe('pat')
+  })
+
   it('removes an integration with its secret, catalog and knowledge', async () => {
     await cli.withProject(testProject({ projectKey: 'OPS' }))
     await cli.run('project', 'refresh')

@@ -102,8 +102,9 @@ export class JiraCloudDiscovery implements JiraDiscovery {
 export const projectOverview = async (
   client: JiraHttpClient,
   projectKey: string,
+  api = '/rest/api/3',
 ): Promise<Result<JiraProjectOverview, TicketSourceError>> => {
-  const path = `/rest/api/3/project/${encodeURIComponent(projectKey)}`
+  const path = `${api}/project/${encodeURIComponent(projectKey)}`
   const detail = await client.get(path, {}, JiraProjectDetailSchema)
   if (!detail.ok) return detail
   const statuses = await client.get(`${path}/statuses`, {}, JiraProjectStatusesSchema)

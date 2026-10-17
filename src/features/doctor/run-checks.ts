@@ -98,7 +98,13 @@ const checkTickets = async (
   tickets: TicketSourceConfig,
   add: AddCheck,
 ): Promise<void> => {
-  if (tickets.auth === 'scoped') {
+  if (tickets.type === 'jira-data-center') {
+    add(
+      'token type',
+      'ok',
+      'Data Center personal access token: it acts with your permissions; a read-only account is safest.',
+    )
+  } else if (tickets.auth === 'scoped') {
     add('token type', 'ok', 'Scoped token through the api.atlassian.com gateway')
   } else {
     add(

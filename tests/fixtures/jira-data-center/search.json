@@ -1,0 +1,33 @@
+{
+  "startAt": 0,
+  "maxResults": 2,
+  "total": 3,
+  "issues": [
+    {
+      "key": "OPS-42",
+      "fields": {
+        "summary": "Invoices are not shown",
+        "issuetype": { "name": "Bug" },
+        "status": { "name": "In Progress" },
+        "priority": { "name": "High" },
+        "assignee": {
+          "key": "JIRAUSER10200",
+          "name": "ben.engineer",
+          "displayName": "Ben Engineer"
+        },
+        "updated": "2026-10-14T18:30:12.345+0000"
+      }
+    },
+    {
+      "key": "OPS-43",
+      "fields": {
+        "summary": "Change a customer's email",
+        "issuetype": { "name": "Service request" },
+        "status": { "name": "Open" },
+        "priority": null,
+        "assignee": null,
+        "updated": "2026-10-15T08:00:00.000+0000"
+      }
+    }
+  ]
+}

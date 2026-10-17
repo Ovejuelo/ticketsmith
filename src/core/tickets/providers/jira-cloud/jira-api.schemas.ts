@@ -2,14 +2,25 @@ import { z } from 'zod'
 
 // Only the fields Ticketsmith reads. Unknown fields are stripped, so API additions never break us.
 
-export const JiraUserSchema = z.object({
-  accountId: z.string(),
+// Cloud identifies users by accountId; Data Center (API v2) by key and name.
+const userFields = {
+  accountId: z.string().optional(),
+  key: z.string().optional(),
+  name: z.string().optional(),
   displayName: z.string(),
-})
+}
+const toUser = (user: {
+  accountId?: string | undefined
+  key?: string | undefined
+  name?: string | undefined
+  displayName: string
+}) => ({ accountId: user.accountId ?? user.key ?? user.name ?? '', displayName: user.displayName })
 
-export const JiraMyselfSchema = JiraUserSchema.extend({
-  emailAddress: z.string().optional(),
-})
+export const JiraUserSchema = z.object(userFields).transform(toUser)
+
+export const JiraMyselfSchema = z
+  .object({ ...userFields, emailAddress: z.string().optional() })
+  .transform((user) => ({ ...toUser(user), emailAddress: user.emailAddress }))
 
 const NamedSchema = z.object({ name: z.string() })
 
@@ -93,6 +104,18 @@ export const JiraSearchPageSchema = z.object({
   issues: z.array(JiraSearchIssueSchema),
   nextPageToken: z.string().nullish(),
 })
+
+/** Data Center (API v2) search: offset pagination. */
+export const JiraOffsetSearchPageSchema = z.object({
+  startAt: z.number(),
+  total: z.number(),
+  issues: z.array(JiraSearchIssueSchema),
+})
+
+/** Data Center lists projects in one unpaginated array. */
+export const JiraProjectListSchema = z.array(
+  z.object({ id: z.string(), key: z.string(), name: z.string() }),
+)
 
 export const JiraProjectPageSchema = z.object({
   values: z.array(z.object({ id: z.string(), key: z.string(), name: z.string() })),

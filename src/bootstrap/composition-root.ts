@@ -33,6 +33,11 @@ import {
   JiraHttpClient,
   resolveCloudId,
 } from '../core/tickets/providers/jira-cloud/index.ts'
+import {
+  JiraDataCenterDiscovery,
+  JiraDataCenterTicketSource,
+  JiraDataCenterTicketWriter,
+} from '../core/tickets/providers/jira-data-center/index.ts'
 
 /**
  * The only place that instantiates providers and wires the object graph.
@@ -58,7 +63,10 @@ export const createServices = ({ env, home, logger }: ServicesOptions): Services
     saveSecret: (project, name, value) => keychain.set({ project, name }, value),
     deleteSecret: (project, name) => keychain.delete({ project, name }),
     resolveCloudId: (siteUrl) => resolveCloudId(siteUrl),
-    connectTickets: (config, token) => connectors[config.type](config, token, logger),
+    connectTickets: (config, token) =>
+      config.type === 'jira-cloud'
+        ? connectors['jira-cloud'](config, token, logger)
+        : connectors['jira-data-center'](config, token, logger),
     connectDatabase: (config, password) =>
       config.type === 'mysql'
         ? databaseConnectors.mysql(config, password, logger)
@@ -118,6 +126,18 @@ const connectors: { readonly [T in TicketSourceConfig['type']]: Connector<T> } =
       }),
       discovery: new JiraCloudDiscovery(client),
       writer: config.allowWrites ? new JiraCloudTicketWriter(client, config.siteUrl) : null,
+    }
+  },
+  'jira-data-center': (config, token, logger) => {
+    // No email: the personal access token goes as a Bearer token.
+    const client = new JiraHttpClient({ baseUrl: config.siteUrl, token, logger })
+    return {
+      source: new JiraDataCenterTicketSource(client, {
+        siteUrl: config.siteUrl,
+        customFields: config.customFields,
+      }),
+      discovery: new JiraDataCenterDiscovery(client),
+      writer: config.allowWrites ? new JiraDataCenterTicketWriter(client, config.siteUrl) : null,
     }
   },
 }

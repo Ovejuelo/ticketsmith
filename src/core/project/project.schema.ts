@@ -32,7 +32,24 @@ export const JiraCloudSourceConfigSchema = z
   })
 export type JiraCloudSourceConfig = z.infer<typeof JiraCloudSourceConfigSchema>
 
-export const TicketSourceConfigSchema = z.discriminatedUnion('type', [JiraCloudSourceConfigSchema])
+/** JIRA Data Center / Server: REST API v2 with a personal access token (Bearer). */
+export const JiraDataCenterSourceConfigSchema = z.object({
+  type: z.literal('jira-data-center'),
+  /** Base URL, with the context path if any, e.g. https://jira.acme.com or https://acme.com/jira */
+  siteUrl: z.url({ protocol: /^https$/ }),
+  projectKey: z.string().min(1).optional(),
+  boardId: z.number().int().positive().optional(),
+  jql: z.string().min(1).optional(),
+  customFields: z.record(z.string(), z.string().regex(/^customfield_\d+$/)).default({}),
+  /** L2: comments and transitions posted by a person from the CLI. */
+  allowWrites: z.boolean().default(false),
+})
+export type JiraDataCenterSourceConfig = z.infer<typeof JiraDataCenterSourceConfigSchema>
+
+export const TicketSourceConfigSchema = z.discriminatedUnion('type', [
+  JiraCloudSourceConfigSchema,
+  JiraDataCenterSourceConfigSchema,
+])
 export type TicketSourceConfig = z.infer<typeof TicketSourceConfigSchema>
 
 const isValidRegex = (pattern: string): boolean => {

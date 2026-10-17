@@ -1,0 +1,31 @@
+{
+  "id": "20001",
+  "key": "OPS-42",
+  "self": "https://jira.example.com/jira/rest/api/2/issue/20001",
+  "fields": {
+    "summary": "Invoices are not shown for merchant 123",
+    "issuetype": { "id": "1", "name": "Bug" },
+    "status": { "id": "3", "name": "In Progress", "statusCategory": { "key": "indeterminate" } },
+    "priority": { "id": "2", "name": "High" },
+    "labels": ["billing"],
+    "components": [{ "id": "100", "name": "Invoices" }],
+    "reporter": {
+      "key": "JIRAUSER10100",
+      "name": "ana.reporter",
+      "displayName": "Ana Reporter",
+      "active": true
+    },
+    "assignee": {
+      "key": "JIRAUSER10200",
+      "name": "ben.engineer",
+      "displayName": "Ben Engineer",
+      "active": true
+    },
+    "created": "2026-10-01T09:15:00.000-0500",
+    "updated": "2026-10-14T18:30:12.345+0000",
+    "description": "Merchant *123* cannot see invoices since the last deploy.\n\n# Log in as the merchant\n# Open {{/invoices}}\n\n{code:json}\n{\"error\": \"timeout\"}\n{code}\nContact: ana@northwind.mx",
+    "attachment": [],
+    "issuelinks": [],
+    "customfield_10042": { "value": "Billing", "id": "10500" }
+  }
+}

@@ -7,11 +7,12 @@ import {
 } from '../../core/project/index.ts'
 import { describeSecretError, secretEnvVariable } from '../../core/secrets/index.ts'
 import type { Services } from '../../core/services/index.ts'
-import { connectTicketSource } from './connect-ticket-source.ts'
+import { connectTicketSource, type JiraDeployment } from './connect-ticket-source.ts'
 import { runDiscover } from './discover-jira.ts'
 import { askJiraConnection } from './jira-prompts.ts'
 
 export type JiraFlags = {
+  readonly deployment?: JiraDeployment
   readonly site?: string
   readonly email?: string
   readonly auth?: JiraAuthKind
@@ -25,19 +26,34 @@ export const addTicketSourceFromFlags = async (
   flags: JiraFlags,
 ): Promise<Project> => {
   const { site, email, auth } = flags
-  if (!site || !email || !auth) fail('A ticket source needs --site, --email and --auth.')
+  const dataCenter = flags.deployment === 'data-center'
+  if (dataCenter ? !site : !site || !email || !auth) {
+    fail(
+      dataCenter
+        ? 'A Data Center ticket source needs --site.'
+        : 'A ticket source needs --site, --email and --auth (or --deployment data-center).',
+    )
+  }
   const token = orFail(await services.loadSecret(project.name, 'jira-token'), describeSecretError)
   if (token === null) fail(`Set ${secretEnvVariable('jira-token')} to add a ticket source.`)
+  const siteUrl = orFail(normalizeSiteUrl(site ?? '', { keepPath: dataCenter }), String)
   const { project: updated } = await connectTicketSource(
     services,
     project,
-    {
-      siteUrl: orFail(normalizeSiteUrl(site), String),
-      email,
-      auth,
-      token: token.value,
-      allowWrites: flags.allowWrites,
-    },
+    dataCenter
+      ? {
+          deployment: 'data-center',
+          siteUrl,
+          token: token.value,
+          allowWrites: flags.allowWrites,
+        }
+      : {
+          siteUrl,
+          email: email ?? '',
+          auth: auth ?? 'scoped',
+          token: token.value,
+          allowWrites: flags.allowWrites,
+        },
     { storeToken: token.source !== 'environment' },
   )
   return updated
@@ -74,7 +90,9 @@ export const configureTicketSourceInteractively = async (
 
   const tickets = updated.integrations.tickets
   const allowWrites = await askConfirm(
-    'Allow posting comments and transitions from the CLI? You read and confirm each one; the token needs write:jira-work.',
+    tickets?.type === 'jira-data-center'
+      ? 'Allow posting comments and transitions from the CLI? You read and confirm each one; your account needs those permissions.'
+      : 'Allow posting comments and transitions from the CLI? You read and confirm each one; the token needs write:jira-work.',
     tickets?.allowWrites ?? false,
   )
   if (tickets !== undefined && allowWrites !== tickets.allowWrites) {
