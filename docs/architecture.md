@@ -70,7 +70,7 @@ src/
     ├── storage/                  per-project SQLite (node:sqlite): onboarding steps, investigated catalog
     ├── knowledge/                masked Markdown writer, project brief
     ├── tickets/                  Ticket model, TicketSource port, ADF→Markdown, jira-cloud provider
-    ├── database/                 read and write guards, preflight, change requests, DatabaseAdapter port, mysql provider
+    ├── database/                 read and write guards per dialect, preflight, change requests, DatabaseAdapter port, mysql + postgres providers
     ├── repos/                    git (no shell, reads from git objects), dedicated clones, ticket worktrees, PullRequestHost port + github/bitbucket-cloud providers
     ├── security/                 masking and the session placeholder vault
     ├── audit/                    AuditLog port + JSONL implementation
@@ -141,7 +141,7 @@ Providers live in `providers/<vendor-or-tech>/` (`jira-cloud`, `keyring`, `env`)
 - Fakes implement ports in memory (`tests/support/`); there are no scattered mocks. `FakeCli` runs real commands against fakes and a temp home dir.
 - Tests import through the Node subpath aliases `#src/…` and `#tests/…` (package.json `imports`).
 - No network in tests: HTTP goes through `FakeFetch` with fixtures shaped like the real APIs.
-- Integration tests in `tests/integration/` (mirroring `src/`) run against real services when their env var is set (e.g. `TICKETSMITH_TEST_MYSQL_URL`, see [local-mysql](guides/local-mysql.md)) and are skipped otherwise; CI runs them with service containers.
+- Integration tests in `tests/integration/` (mirroring `src/`) run against real services when their env var is set (e.g. `TICKETSMITH_TEST_MYSQL_URL`, `TICKETSMITH_TEST_POSTGRES_URL`, see [local-databases](guides/local-databases.md)) and are skipped otherwise; CI runs them with service containers.
 - Checks against the real JIRA are scripts in `scripts/`, run on demand.
 
 ## 7. How a request flows
@@ -175,6 +175,6 @@ Claude Code → `ticketsmith mcp` → `bootstrap/mcp-server.ts` → `features/ti
 | Tests | vitest | |
 | Lint + format | Biome | |
 | Architecture | dependency-cruiser (`parser: 'swc'`) | TS 7 has no JS API yet |
-| Databases | mysql2 + node-sql-parser | Integration tests against MySQL in Colima/Docker locally and a service container in CI |
+| Databases | mysql2, pg + node-sql-parser | One adapter contract suite against MySQL and PostgreSQL in Colima/Docker locally and service containers in CI |
 
 Later phases add the Claude Agent SDK.

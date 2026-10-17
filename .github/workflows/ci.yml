@@ -53,6 +53,15 @@ jobs:
         options: >-
           --health-cmd="mysqladmin ping -uroot -pdev --silent"
           --health-interval=5s --health-timeout=5s --health-retries=20
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_PASSWORD: dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4

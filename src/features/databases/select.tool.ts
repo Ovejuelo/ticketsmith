@@ -15,7 +15,7 @@ export const selectTool = defineTool({
     sql: z
       .string()
       .describe(
-        'One SELECT statement (MySQL); placeholders such as [EMAIL_1]@acme.com are allowed in literals',
+        'One SELECT statement in the dialect of the database engine (MySQL or PostgreSQL); placeholders such as [EMAIL_1]@acme.com are allowed in literals',
       ),
     limit: z
       .number()

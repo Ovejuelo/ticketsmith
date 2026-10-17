@@ -76,7 +76,14 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
     )
     .option('--name <name>', 'databases: name in this project, e.g. shard1 (non-interactive)')
     .option('--host <host>', 'databases: host')
-    .option('--port <port>', 'databases: port (default 3306)', parsePositiveInt)
+    .addOption(
+      new Option('--engine <engine>', 'databases: engine (default mysql)').choices([
+        'mysql',
+        'postgres',
+      ]),
+    )
+    .option('--port <port>', 'databases: port (default 3306, PostgreSQL 5432)', parsePositiveInt)
+    .option('--schema <schema>', 'databases: PostgreSQL schema to investigate (default public)')
     .option('--database <schema>', 'databases: database (schema) name')
     .option('--user <user>', 'databases: user')
     .option('--group <group>', 'databases: group of databases sharing a schema')

@@ -31,12 +31,12 @@ export {
   updateRollback,
 } from './preflight.ts'
 export {
-  type Dialect,
   type GuardedQuery,
   type GuardOptions,
   type GuardRejection,
   guardReadQuery,
 } from './readonly-guard.ts'
+export { DIALECT_LABEL, type Dialect } from './sql-dialect.ts'
 export { quoteIdentifier, sqlLiteral } from './sql-literal.ts'
 export {
   type ChangeKind,

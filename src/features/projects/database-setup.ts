@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  askChoice,
   askConfirm,
   askSecret,
   askText,
@@ -10,7 +11,7 @@ import {
   orFail,
   spinner,
 } from '../../core/cli/index.ts'
-import { describeDatabaseError } from '../../core/database/index.ts'
+import { DIALECT_LABEL, type Dialect, describeDatabaseError } from '../../core/database/index.ts'
 import { err, ok, type Result } from '../../core/kernel/index.ts'
 import {
   type DatabaseConfig,
@@ -25,11 +26,14 @@ import type { Services } from '../../core/services/index.ts'
 import { validateWith } from './jira-prompts.ts'
 
 export type DatabaseFlags = {
+  readonly engine?: Dialect
   readonly name?: string
   readonly host?: string
   readonly port?: number
   readonly database?: string
   readonly user?: string
+  /** PostgreSQL only: the schema to investigate and search (default public). */
+  readonly schema?: string
   readonly group?: string
   readonly ssl?: boolean
   readonly allowChanges?: boolean
@@ -64,14 +68,18 @@ export const withDatabase = (project: Project, config: DatabaseConfig): Result<P
   return parsed.success ? ok(parsed.data) : err(z.prettifyError(parsed.error))
 }
 
+export const DEFAULT_PORT: Readonly<Record<Dialect, number>> = { mysql: 3306, postgres: 5432 }
+
 const parseConfig = (flags: DatabaseFlags): Result<DatabaseConfig, string> => {
+  const engine = flags.engine ?? 'mysql'
   const parsed = DatabaseConfigSchema.safeParse({
-    type: 'mysql',
+    type: engine,
     name: flags.name,
     host: flags.host,
-    port: flags.port ?? 3306,
+    port: flags.port ?? DEFAULT_PORT[engine],
     database: flags.database,
     user: flags.user,
+    ...(engine === 'postgres' ? { schema: flags.schema || undefined } : {}),
     group: flags.group || undefined,
     ssl: flags.ssl ?? false,
     allowChanges: flags.allowChanges ?? false,
@@ -122,7 +130,7 @@ export const configureDatabasesInteractively = async (
       existing
         .map(
           (d) =>
-            `${d.name}  ${d.user}@${d.host}:${d.port}/${d.database}${d.group ? `  [${d.group}]` : ''}`,
+            `${d.name}  ${DIALECT_LABEL[d.type]}  ${d.user}@${d.host}:${d.port}/${d.database}${d.group ? `  [${d.group}]` : ''}`,
         )
         .join('\n'),
       'Configured databases',
@@ -136,6 +144,14 @@ export const configureDatabasesInteractively = async (
       message: 'Database name in this project (e.g. shard1, billing)',
       validate: validateWith(DatabaseNameSchema),
     })
+    const engine = await askChoice<Dialect>(
+      'Engine',
+      [
+        { value: 'mysql', label: 'MySQL' },
+        { value: 'postgres', label: 'PostgreSQL' },
+      ],
+      template?.type ?? 'mysql',
+    )
     const host = await askText({
       message: 'Host',
       initialValue: template?.host ?? '',
@@ -143,7 +159,7 @@ export const configureDatabasesInteractively = async (
     })
     const port = await askText({
       message: 'Port',
-      initialValue: String(template?.port ?? 3306),
+      initialValue: String(template?.type === engine ? template.port : DEFAULT_PORT[engine]),
       validate: (v) => (/^\d+$/.test(v.trim()) ? undefined : 'A number'),
     })
     const database = await askText({
@@ -156,6 +172,14 @@ export const configureDatabasesInteractively = async (
       initialValue: template?.user ?? '',
       validate: (v) => (v.trim() ? undefined : 'Required'),
     })
+    const schema =
+      engine === 'postgres'
+        ? await askText({
+            message: 'Schema to investigate',
+            initialValue: template?.type === 'postgres' ? template.schema : 'public',
+            validate: (v) => (v.trim() ? undefined : 'Required'),
+          })
+        : undefined
     const group = await askText({
       message: 'Group (databases sharing one schema; empty for none)',
       initialValue: template?.group ?? '',
@@ -168,6 +192,8 @@ export const configureDatabasesInteractively = async (
     )
 
     const config = parseConfig({
+      engine,
+      ...(schema === undefined ? {} : { schema }),
       name,
       host,
       port: Number(port),

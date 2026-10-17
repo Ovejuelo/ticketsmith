@@ -17,7 +17,11 @@ export const selectGroupTool = defineTool({
   description: `Run the same read-only SQL on every database of a group that shares one schema (e.g. to find which database holds an account) and get the rows per database. ${SQL_RULES}`,
   inputSchema: {
     group: z.string().describe('Group name (see the project brief or db_schema)'),
-    sql: z.string().describe('One SELECT statement (MySQL); placeholders are allowed in literals'),
+    sql: z
+      .string()
+      .describe(
+        'One SELECT statement in the dialect of the group engine; placeholders are allowed in literals',
+      ),
     limit: z
       .number()
       .int()

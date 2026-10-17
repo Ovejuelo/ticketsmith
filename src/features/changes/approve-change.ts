@@ -76,7 +76,7 @@ export const approveAndExecute = async (
 
   const tables = await tablesOf(opened, config.group ?? config.name)
   if (!tables.ok) return tables
-  const guarded = guardChange(change.sql, { tables: tables.value })
+  const guarded = guardChange(change.sql, { dialect: config.type, tables: tables.value })
   if (!guarded.ok)
     return err(`The change no longer passes the write guard: ${guarded.error.reason}`)
 
@@ -143,7 +143,8 @@ export const approveAndExecute = async (
         ? {
             rollbackSql: insertRollback(
               guarded.value,
-              insertedKeys(guarded.value, executed.value.insertId, preflight.value.rows),
+              executed.value.insertedKeys ??
+                insertedKeys(guarded.value, executed.value.insertId, preflight.value.rows),
               change.id,
             ),
           }

@@ -103,6 +103,39 @@ describe('ticketsmith project add|remove databases', () => {
     expect(cli.databases.connections[0]).toEqual({ name: 'shard1', password: 'pw1' })
   })
 
+  it('adds a PostgreSQL database with its default port and schema', async () => {
+    await cli.secrets.set({ project: 'acme', name: 'db-ledger' }, 'pw')
+    expect(
+      await cli.run(
+        'project',
+        'add',
+        'databases',
+        '--engine',
+        'postgres',
+        '--name',
+        'ledger',
+        '--host',
+        'ledger.internal',
+        '--database',
+        'ledger',
+        '--user',
+        'reader',
+      ),
+    ).toBeNull()
+    const project = await cli.services.projects.load('acme')
+    expect(project.ok && project.value.integrations.databases?.[0]).toEqual({
+      name: 'ledger',
+      type: 'postgres',
+      host: 'ledger.internal',
+      port: 5432,
+      database: 'ledger',
+      user: 'reader',
+      schema: 'public',
+      ssl: false,
+      allowChanges: false,
+    })
+  })
+
   it('removes one database or all of them, with their secrets', async () => {
     await cli.withProject(
       withDatabases(testProject(null), [testDatabase('shard1'), testDatabase('shard2')]),

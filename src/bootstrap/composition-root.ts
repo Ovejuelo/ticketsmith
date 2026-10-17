@@ -5,6 +5,10 @@ import {
   createMysqlConnectionSource,
   MysqlDatabaseAdapter,
 } from '../core/database/providers/mysql/index.ts'
+import {
+  createPostgresConnectionSource,
+  PostgresDatabaseAdapter,
+} from '../core/database/providers/postgres/index.ts'
 import { ConfigError, type Logger } from '../core/kernel/index.ts'
 import {
   type DatabaseConfig,
@@ -54,7 +58,9 @@ export const createServices = ({ env, home, logger }: ServicesOptions): Services
     resolveCloudId: (siteUrl) => resolveCloudId(siteUrl),
     connectTickets: (config, token) => connectors[config.type](config, token, logger),
     connectDatabase: (config, password) =>
-      databaseConnectors[config.type](config, password, logger),
+      config.type === 'mysql'
+        ? databaseConnectors.mysql(config, password, logger)
+        : databaseConnectors.postgres(config, password, logger),
     agent: new ClaudeCodeCliRuntime(),
     pullRequestHost: (type, apiUrl) =>
       type === 'github'
@@ -115,6 +121,13 @@ const databaseConnectors: { readonly [T in DatabaseConfig['type']]: DatabaseConn
     new MysqlDatabaseAdapter({
       name: config.name,
       source: createMysqlConnectionSource({ ...config, password }),
+      logger,
+    }),
+  postgres: (config, password, logger) =>
+    new PostgresDatabaseAdapter({
+      name: config.name,
+      schema: config.schema,
+      source: createPostgresConnectionSource({ ...config, password }),
       logger,
     }),
 }

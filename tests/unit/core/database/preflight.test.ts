@@ -26,7 +26,7 @@ const accounts: TableInfo = {
 }
 
 const change = (sql: string) => {
-  const guarded = guardChange(sql, { tables: [accounts] })
+  const guarded = guardChange(sql, { dialect: 'mysql', tables: [accounts] })
   if (!guarded.ok) throw new Error(guarded.error.reason)
   return guarded.value
 }
@@ -39,6 +39,13 @@ describe('sqlLiteral', () => {
     expect(sqlLiteral("O'Brien \\ \n")).toBe("'O\\'Brien \\\\ \\n'")
     expect(sqlLiteral('2026-10-16 10:00:00')).toBe("'2026-10-16 10:00:00'")
     expect(sqlLiteral(Buffer.from([0xde, 0xad]))).toBe("X'dead'")
+  })
+
+  it('renders standard-conforming PostgreSQL literals', () => {
+    expect(sqlLiteral("O'Brien \\ \n", 'postgres')).toBe("'O''Brien \\ \n'")
+    expect(sqlLiteral(true, 'postgres')).toBe('TRUE')
+    expect(sqlLiteral(Buffer.from([0xde, 0xad]), 'postgres')).toBe("'\\xdead'::bytea")
+    expect(sqlLiteral({ a: 1 }, 'postgres')).toBe('\'{"a":1}\'')
   })
 })
 
@@ -87,6 +94,29 @@ describe('preflightChange', () => {
           '',
         ].join('\n'),
       },
+    })
+  })
+
+  it('quotes the PostgreSQL way and refuses a database of another engine', async () => {
+    const db = new FakeDatabaseAdapter('pg1')
+    db.dialect = 'postgres'
+    db.answer = () => ok({ ...emptyResult, rows: [{ id: 7, status: "it's" }] })
+    const guarded = guardChange("UPDATE accounts SET status = 'x' WHERE id = 7", {
+      dialect: 'postgres',
+      tables: [accounts],
+    })
+    if (!guarded.ok) throw new Error(guarded.error.reason)
+
+    const result = await preflightChange(db, guarded.value, { maxRows: 100, changeId: 'cr-3' })
+    expect(db.queries[0]).toBe('SELECT "id", "status" FROM "accounts" WHERE id = 7 LIMIT 101')
+    expect(result.ok && result.value.rollbackSql).toContain(
+      'UPDATE "accounts" SET "status" = \'it\'\'s\' WHERE "id" = 7;',
+    )
+
+    db.dialect = 'mysql'
+    expect(await preflightChange(db, guarded.value, { maxRows: 100, changeId: 'cr-3' })).toEqual({
+      ok: false,
+      error: 'The change was written for postgres, but the database is mysql.',
     })
   })
 

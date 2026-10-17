@@ -1,15 +1,19 @@
-import { createRequire } from 'node:module'
 import { err, ok, type Result } from '../kernel/index.ts'
 import type { TableInfo } from './database.schema.ts'
 import type { GuardRejection } from './readonly-guard.ts'
+import {
+  astify,
+  DIALECT_LABEL,
+  type Dialect,
+  exprToSql,
+  field,
+  foldPostgresNames,
+  identifierName,
+  isDollarString,
+  sqlify,
+} from './sql-dialect.ts'
+import { quoteIdentifier } from './sql-literal.ts'
 import { scanText } from './sql-text-scan.ts'
-
-// node-sql-parser is CommonJS without named ESM exports; its types do declare `Parser`.
-const { Parser } = createRequire(import.meta.url)(
-  'node-sql-parser',
-) as typeof import('node-sql-parser')
-const parser = new Parser()
-const PARSER_OPTIONS = { database: 'MySQL' } as const
 
 declare const guardedChange: unique symbol
 
@@ -21,6 +25,7 @@ export type ChangeKind = 'insert' | 'update'
  */
 export type GuardedChange = {
   readonly sql: string
+  readonly dialect: Dialect
   readonly kind: ChangeKind
   readonly table: string
   /** From the investigated catalog; the rollback script is keyed by it. */
@@ -35,6 +40,7 @@ export type GuardedChange = {
 }
 
 export type WriteGuardOptions = {
+  readonly dialect: Dialect
   /** The database's investigated tables (columns and keys). */
   readonly tables: readonly TableInfo[]
 }
@@ -72,17 +78,12 @@ const LITERAL_TYPES = new Set([
 
 const reject = (reason: string): Result<never, GuardRejection> => err({ kind: 'rejected', reason })
 
-const field = (node: unknown, key: string): unknown =>
-  node !== null && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined
-
 const functionName = (name: unknown): string => {
   const parts = field(name, 'name')
   if (!Array.isArray(parts)) return typeof name === 'string' ? name.toUpperCase() : ''
   const value = field(parts.at(-1), 'value')
   return typeof value === 'string' ? value.toUpperCase() : ''
 }
-
-const quote = (identifier: string): string => `\`${identifier.replaceAll('`', '``')}\``
 
 /**
  * Validates that `sql` is one INSERT … VALUES or one UPDATE … WHERE on one known table with a
@@ -98,14 +99,17 @@ export const guardChange = (
 ): Result<GuardedChange, GuardRejection> => {
   if (sql.trim() === '') return reject('Empty change.')
   if (sql.includes('\u0000')) return reject('Changes cannot contain null bytes.')
-  const textProblem = scanText(sql)
-  if (textProblem !== null) return reject(textProblem)
+  const { dialect } = options
+  const text = scanText(sql, dialect)
+  if (text.problem !== null) return reject(text.problem)
 
   let parsed: unknown
   try {
-    parsed = parser.astify(sql, PARSER_OPTIONS)
+    parsed = astify(sql, dialect)
   } catch (error) {
-    return reject(`The change could not be parsed as MySQL: ${firstLine(error)}`)
+    return reject(
+      `The change could not be parsed as ${DIALECT_LABEL[dialect]}: ${firstLine(error)}`,
+    )
   }
   const statements = Array.isArray(parsed) ? parsed : [parsed]
   if (statements.length !== 1)
@@ -120,6 +124,17 @@ export const guardChange = (
     return reject(
       `Only a single INSERT … VALUES or UPDATE … WHERE is allowed; got ${String(type).toUpperCase()}.`,
     )
+  }
+
+  if (dialect === 'postgres') {
+    const ambiguous = foldPostgresNames(parsed, text.quoted, text.bare)
+    if (ambiguous !== null) return reject(ambiguous)
+    if (field(root, 'returning')) return reject('RETURNING is not allowed in changes.')
+    if (field(root, 'conflict')) return reject('ON CONFLICT is not allowed: use a plain INSERT.')
+    const from = field(root, 'from')
+    if (Array.isArray(from) && from.length > 0) {
+      return reject('UPDATE … FROM is not allowed: a change touches exactly one table.')
+    }
   }
 
   const tables = field(root, 'table')
@@ -141,7 +156,7 @@ export const guardChange = (
   if (type === 'insert' && field(field(root, 'values'), 'type') === 'select') {
     return reject('INSERT … SELECT is not allowed: list the values (INSERT … VALUES).')
   }
-  const unsafe = findUnsafe(root)
+  const unsafe = findUnsafe(root, dialect)
   if (unsafe !== null) return reject(unsafe)
 
   const known = new Set(table.columns.map((c) => c.name))
@@ -153,8 +168,8 @@ export const guardChange = (
     return reject(`${columnProblem} in ${tableName}: check it with db_schema.`)
 
   return type === 'insert'
-    ? guardInsert(root, parsed, table, primaryKey)
-    : guardUpdate(root, parsed, table, primaryKey)
+    ? guardInsert(root, parsed, table, primaryKey, dialect)
+    : guardUpdate(root, parsed, table, primaryKey, dialect)
 }
 
 const guardInsert = (
@@ -162,6 +177,7 @@ const guardInsert = (
   parsed: unknown,
   table: TableInfo,
   primaryKey: readonly string[],
+  dialect: Dialect,
 ): Result<GuardedChange, GuardRejection> => {
   if (
     String(field(root, 'prefix') ?? '')
@@ -194,16 +210,17 @@ const guardInsert = (
       if (problem !== null) return reject(problem)
     }
   }
-  const names = columns.map(String)
-  const regenerated = regenerate(parsed)
+  const names = columns.map(identifierName)
+  const regenerated = regenerate(parsed, dialect)
   if (!regenerated.ok) return regenerated
   // node-sql-parser leaves INSERT columns unquoted; quote them so reserved words survive.
   const sql = regenerated.value.replace(
     /\(([^()]*)\) VALUES/,
-    () => `(${names.map(quote).join(', ')}) VALUES`,
+    () => `(${names.map((name) => quoteIdentifier(name, dialect)).join(', ')}) VALUES`,
   )
   return ok({
     sql,
+    dialect,
     kind: 'insert',
     table: table.name,
     primaryKey,
@@ -218,6 +235,7 @@ const guardUpdate = (
   parsed: unknown,
   table: TableInfo,
   primaryKey: readonly string[],
+  dialect: Dialect,
 ): Result<GuardedChange, GuardRejection> => {
   const orderBy = field(root, 'orderby')
   const limit = field(field(root, 'limit'), 'value')
@@ -243,20 +261,21 @@ const guardUpdate = (
       'The WHERE must pin rows: include at least one "column = literal" or "column IN (literals)" joined with AND (not OR), e.g. WHERE id = 7.',
     )
   }
-  const regenerated = regenerate(parsed)
+  const regenerated = regenerate(parsed, dialect)
   if (!regenerated.ok) return regenerated
   let whereSql: string
   try {
-    whereSql = parser.exprToSQL(where as Parameters<typeof parser.exprToSQL>[0], PARSER_OPTIONS)
+    whereSql = exprToSql(where, dialect)
   } catch (error) {
     return reject(`The WHERE could not be safely regenerated: ${firstLine(error)}`)
   }
   return ok({
     sql: regenerated.value,
+    dialect,
     kind: 'update',
     table: table.name,
     primaryKey,
-    columns: set.map((item) => String(field(item, 'column'))),
+    columns: set.map((item) => identifierName(field(item, 'column'))),
     whereSql,
     insertRows: null,
   } as unknown as GuardedChange)
@@ -265,7 +284,7 @@ const guardUpdate = (
 /** Literals, allowlisted functions of values, and (in SET) arithmetic on the row's own columns. */
 const valueProblem = (node: unknown, allowColumns: boolean): string | null => {
   const type = field(node, 'type')
-  if (typeof type === 'string' && LITERAL_TYPES.has(type)) return null
+  if ((typeof type === 'string' && LITERAL_TYPES.has(type)) || isDollarString(node)) return null
   if (type === 'column_ref') return allowColumns ? null : 'INSERT values must be literals.'
   if (type === 'function') {
     const args = field(field(node, 'args'), 'value')
@@ -288,7 +307,7 @@ const valueProblem = (node: unknown, allowColumns: boolean): string | null => {
 const isLiteral = (node: unknown): boolean => {
   const type = field(node, 'type')
   if (type === 'null' || type === 'bool') return false // `= NULL` matches nothing; TRUE pins nothing
-  return typeof type === 'string' && LITERAL_TYPES.has(type)
+  return (typeof type === 'string' && LITERAL_TYPES.has(type)) || isDollarString(node)
 }
 
 /** True when an AND-only path holds `column = literal` or `column IN (literals…)`. */
@@ -318,10 +337,10 @@ const pinsRows = (node: unknown): boolean => {
 }
 
 /** Subqueries, variables, assignments and functions outside the allowlist, anywhere in the tree. */
-const findUnsafe = (node: unknown): string | null => {
+const findUnsafe = (node: unknown, dialect: Dialect): string | null => {
   if (Array.isArray(node)) {
     for (const item of node) {
-      const found = findUnsafe(item)
+      const found = findUnsafe(item, dialect)
       if (found !== null) return found
     }
     return null
@@ -331,7 +350,12 @@ const findUnsafe = (node: unknown): string | null => {
   if (type === 'select' || field(node, 'ast') !== undefined) {
     return 'Subqueries are not allowed in changes: look the values up with db_select first.'
   }
-  if (type === 'var') return 'Session variables (@x, @@x) are not allowed in changes.'
+  if (type === 'var') {
+    if (dialect === 'postgres' && isDollarString(node)) return null
+    return dialect === 'postgres'
+      ? 'Parameters ($1) are not allowed in changes: write the values.'
+      : 'Session variables (@x, @@x) are not allowed in changes.'
+  }
   if (type === 'assign') return 'Variable assignment (:=) is not allowed in changes.'
   if (type === 'aggr_func') return 'Aggregate functions are not allowed in changes.'
   if (type === 'function') {
@@ -342,7 +366,7 @@ const findUnsafe = (node: unknown): string | null => {
   }
   for (const [key, value] of Object.entries(node)) {
     if (key === 'table') continue // the target table list, checked separately
-    const found = findUnsafe(value)
+    const found = findUnsafe(value, dialect)
     if (found !== null) return found
   }
   return null
@@ -357,9 +381,9 @@ const findUnknownColumn = (
   const names: string[] = []
   const insertColumns = field(root, 'columns')
   if (field(root, 'type') === 'insert' && Array.isArray(insertColumns))
-    names.push(...insertColumns.map(String))
+    names.push(...insertColumns.map(identifierName))
   const set = field(root, 'set')
-  if (Array.isArray(set)) names.push(...set.map((item) => String(field(item, 'column'))))
+  if (Array.isArray(set)) names.push(...set.map((item) => identifierName(field(item, 'column'))))
   const collect = (node: unknown): string | null => {
     if (Array.isArray(node)) {
       for (const item of node) {
@@ -374,8 +398,9 @@ const findUnknownColumn = (
       if (typeof qualifier === 'string' && qualifier !== '' && !qualifiers.includes(qualifier)) {
         return `Unknown table qualifier "${qualifier}"`
       }
-      names.push(String(field(node, 'column')))
-      return null
+      names.push(identifierName(field(node, 'column')))
+      // PostgreSQL's SET items are column refs that carry the new value.
+      return collect(field(node, 'value'))
     }
     for (const [key, value] of Object.entries(node)) {
       if (key === 'table' || key === 'columns') continue
@@ -390,9 +415,9 @@ const findUnknownColumn = (
   return unknown === undefined ? null : `Unknown column "${unknown}"`
 }
 
-const regenerate = (parsed: unknown): Result<string, GuardRejection> => {
+const regenerate = (parsed: unknown, dialect: Dialect): Result<string, GuardRejection> => {
   try {
-    return ok(parser.sqlify(parsed as Parameters<typeof parser.sqlify>[0], PARSER_OPTIONS).trim())
+    return ok(sqlify(parsed, dialect))
   } catch (error) {
     return reject(`The change could not be safely regenerated: ${firstLine(error)}`)
   }

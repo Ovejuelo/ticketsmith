@@ -35,6 +35,8 @@ export type ChangeOutcome = {
   readonly affectedRows: number
   /** First AUTO_INCREMENT id of an INSERT (MySQL assigns a single INSERT's ids consecutively). */
   readonly insertId: number | null
+  /** The inserted rows' primary keys when the engine returns them (PostgreSQL's RETURNING). */
+  readonly insertedKeys: readonly Readonly<Record<string, unknown>>[] | null
 }
 
 export type ChangeError =

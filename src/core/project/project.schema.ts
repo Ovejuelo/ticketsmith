@@ -81,7 +81,24 @@ export const MysqlDatabaseConfigSchema = z.object({
   allowChanges: z.boolean().default(false),
 })
 
-export const DatabaseConfigSchema = z.discriminatedUnion('type', [MysqlDatabaseConfigSchema])
+export const PostgresDatabaseConfigSchema = z.object({
+  name: DatabaseNameSchema,
+  type: z.literal('postgres'),
+  host: z.string().min(1),
+  port: z.number().int().min(1).max(65_535).default(5432),
+  database: z.string().min(1),
+  user: z.string().min(1),
+  /** The schema investigated and searched first (search_path). */
+  schema: z.string().min(1).default('public'),
+  group: DatabaseNameSchema.optional(),
+  ssl: z.boolean().default(false),
+  allowChanges: z.boolean().default(false),
+})
+
+export const DatabaseConfigSchema = z.discriminatedUnion('type', [
+  MysqlDatabaseConfigSchema,
+  PostgresDatabaseConfigSchema,
+])
 export type DatabaseConfig = z.infer<typeof DatabaseConfigSchema>
 
 export const DatabasesSchema = z
@@ -98,6 +115,19 @@ export const DatabasesSchema = z
         })
       }
       names.add(database.name)
+    })
+    const groupTypes = new Map<string, string>()
+    databases.forEach((database, index) => {
+      if (database.group === undefined) return
+      const type = groupTypes.get(database.group)
+      if (type !== undefined && type !== database.type) {
+        context.addIssue({
+          code: 'custom',
+          message: `Group "${database.group}" mixes ${type} and ${database.type}; a group shares one schema, so one engine`,
+          path: [index, 'type'],
+        })
+      }
+      groupTypes.set(database.group, database.type)
     })
     databases.forEach((database, index) => {
       if (database.group !== undefined && names.has(database.group)) {

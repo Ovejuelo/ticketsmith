@@ -9,6 +9,7 @@
     "claude-code",
     "tickets",
     "mysql",
+    "postgresql",
     "cli",
     "agent"
   ],
@@ -55,7 +56,9 @@
     "guard:private": "node scripts/guard-private-terms.ts",
     "mysql:up": "docker start ticketsmith-mysql >/dev/null 2>&1 || docker run -d --name ticketsmith-mysql -p 3307:3306 -e MYSQL_ROOT_PASSWORD=dev -e MYSQL_DATABASE=app mysql:8.4.9",
     "mysql:down": "docker stop ticketsmith-mysql",
-    "test:integration": "TICKETSMITH_TEST_MYSQL_URL=mysql://root:dev@127.0.0.1:3307 vitest run tests/integration"
+    "postgres:up": "docker start ticketsmith-postgres >/dev/null 2>&1 || docker run -d --name ticketsmith-postgres -p 5433:5432 -e POSTGRES_PASSWORD=dev postgres:17.6",
+    "postgres:down": "docker stop ticketsmith-postgres",
+    "test:integration": "TICKETSMITH_TEST_MYSQL_URL=mysql://root:dev@127.0.0.1:3307 TICKETSMITH_TEST_POSTGRES_URL=postgres://postgres:dev@127.0.0.1:5433/postgres vitest run tests/integration"
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1",
@@ -64,6 +67,7 @@
     "commander": "^15.0.0",
     "mysql2": "^3.24.6",
     "node-sql-parser": "^5.4.0",
+    "pg": "^8.23.1",
     "picocolors": "^1.1.1",
     "pino": "^10.4.0",
     "yaml": "^2.9.1",
@@ -73,6 +77,7 @@
     "@biomejs/biome": "^2.5.15",
     "@swc/core": "^1.16.18",
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "dependency-cruiser": "^18.6.0",
     "tsdown": "^0.23.1",
     "typescript": "^7.0.2",

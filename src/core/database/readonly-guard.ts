@@ -1,14 +1,16 @@
-import { createRequire } from 'node:module'
 import { err, ok, type Result } from '../kernel/index.ts'
+import {
+  astify,
+  DIALECT_LABEL,
+  type Dialect,
+  field,
+  foldPostgresNames,
+  isDollarString,
+  sqlify,
+} from './sql-dialect.ts'
 import { scanText } from './sql-text-scan.ts'
 
-// node-sql-parser is CommonJS without named ESM exports; its types do declare `Parser`.
-const { Parser } = createRequire(import.meta.url)(
-  'node-sql-parser',
-) as typeof import('node-sql-parser')
-const parser = new Parser()
-
-export type Dialect = 'mysql'
+export type { Dialect } from './sql-dialect.ts'
 
 declare const guarded: unique symbol
 
@@ -27,11 +29,9 @@ export type GuardRejection = { readonly kind: 'rejected'; readonly reason: strin
 
 export type GuardOptions = { readonly dialect: Dialect; readonly maxRows: number }
 
-const PARSER_OPTIONS = { database: 'MySQL' } as const
-
-// Functions that wait, lock, read server files or run commands. Writes are also stopped by the
-// READ ONLY transaction; these are blocked because they misuse a read connection.
-const DENIED_FUNCTIONS = new Set([
+// Functions that wait, lock, read server files, run SQL text or commands. Writes are also stopped
+// by the READ ONLY transaction; these are blocked because they misuse a read connection.
+const MYSQL_DENIED = new Set([
   'SLEEP',
   'BENCHMARK',
   'GET_LOCK',
@@ -48,12 +48,59 @@ const DENIED_FUNCTIONS = new Set([
   'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS',
 ])
 
+const POSTGRES_DENIED = new Set([
+  'SET_CONFIG',
+  'NEXTVAL',
+  'SETVAL',
+  'PG_TERMINATE_BACKEND',
+  'PG_CANCEL_BACKEND',
+  'PG_RELOAD_CONF',
+  'PG_ROTATE_LOGFILE',
+  'PG_NOTIFY',
+  'PG_LOGICAL_EMIT_MESSAGE',
+  'PG_PROMOTE',
+  'PG_IMPORT_SYSTEM_COLLATIONS',
+  // These run SQL passed as text, which the guard never sees.
+  'QUERY_TO_XML',
+  'QUERY_TO_XMLSCHEMA',
+  'QUERY_TO_XML_AND_XMLSCHEMA',
+  'CURSOR_TO_XML',
+  'CURSOR_TO_XMLSCHEMA',
+  'TS_STAT',
+])
+
+const POSTGRES_DENIED_PREFIXES = [
+  'PG_SLEEP', // pg_sleep, pg_sleep_for, pg_sleep_until
+  'PG_READ_', // pg_read_file, pg_read_binary_file
+  'PG_LS_', // pg_ls_dir, pg_ls_logdir, pg_ls_waldir…
+  'PG_STAT_FILE',
+  'PG_STAT_RESET',
+  'PG_FILE_',
+  'LO_', // large objects: lo_import, lo_export…
+  'DBLINK',
+  'PG_ADVISORY_',
+  'PG_TRY_ADVISORY_',
+  'TXID_',
+  'PG_CREATE_',
+  'PG_DROP_',
+  'PG_REPLICATION_',
+  'PG_WAL_',
+  'PG_SWITCH_WAL',
+]
+
+const isDenied = (name: string, dialect: Dialect): boolean =>
+  dialect === 'mysql'
+    ? MYSQL_DENIED.has(name)
+    : POSTGRES_DENIED.has(name) ||
+      POSTGRES_DENIED_PREFIXES.some((prefix) => name.startsWith(prefix))
+
 const reject = (reason: string): Result<never, GuardRejection> => err({ kind: 'rejected', reason })
 
 /**
  * Validates that `sql` is a single side-effect-free SELECT and returns the SQL to execute.
  * Fails closed: anything it cannot parse or understand is rejected. Two layers:
- * 1. Text scan for comment tricks the parser cannot see but MySQL executes (/*! … *\/, "--x").
+ * 1. Text scan for constructs the parser and the database would read differently (MySQL
+ *    executable comments and "--x"; PostgreSQL nested comments and backslashes in strings).
  * 2. Full syntax-tree walk; the executed SQL is regenerated from that tree, so what runs is
  *    exactly what was checked.
  * Defense in depth still applies at execution time (READ ONLY transaction, time limit, ROLLBACK).
@@ -65,14 +112,15 @@ export const guardReadQuery = (
   if (sql.trim() === '') return reject('Empty query.')
   if (sql.includes('\u0000')) return reject('Queries cannot contain null bytes.')
 
-  const textProblem = scanText(sql)
-  if (textProblem !== null) return reject(textProblem)
+  const { dialect } = options
+  const text = scanText(sql, dialect)
+  if (text.problem !== null) return reject(text.problem)
 
   let parsed: unknown
   try {
-    parsed = parser.astify(sql, PARSER_OPTIONS)
+    parsed = astify(sql, dialect)
   } catch (error) {
-    return reject(`The query could not be parsed as MySQL: ${firstLine(error)}`)
+    return reject(`The query could not be parsed as ${DIALECT_LABEL[dialect]}: ${firstLine(error)}`)
   }
   const statements = Array.isArray(parsed) ? parsed : [parsed]
   if (statements.length !== 1) {
@@ -86,8 +134,12 @@ export const guardReadQuery = (
     )
   }
 
-  const violation = findViolation(root)
+  const violation = findViolation(root, dialect)
   if (violation !== null) return reject(violation)
+  if (dialect === 'postgres') {
+    const ambiguous = foldPostgresNames(parsed, text.quoted, text.bare)
+    if (ambiguous !== null) return reject(ambiguous)
+  }
 
   const existingLimit = limitOf(root)
   if (existingLimit === 'unreadable') {
@@ -101,9 +153,7 @@ export const guardReadQuery = (
 
   let regenerated: string
   try {
-    regenerated = parser
-      .sqlify(parsed as Parameters<typeof parser.sqlify>[0], PARSER_OPTIONS)
-      .trim()
+    regenerated = sqlify(parsed, dialect)
   } catch (error) {
     return reject(`The query could not be safely regenerated: ${firstLine(error)}`)
   }
@@ -113,9 +163,6 @@ export const guardReadQuery = (
 }
 
 // --- tree layer ----------------------------------------------------------------------------
-
-const field = (node: unknown, key: string): unknown =>
-  node !== null && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined
 
 const functionName = (name: unknown): string => {
   if (typeof name === 'string') return name.toUpperCase()
@@ -127,10 +174,10 @@ const functionName = (name: unknown): string => {
 }
 
 /** Walks every node (subqueries, CTEs, UNION branches) and returns the first reason to reject. */
-const findViolation = (node: unknown): string | null => {
+const findViolation = (node: unknown, dialect: Dialect): string | null => {
   if (Array.isArray(node)) {
     for (const item of node) {
-      const found = findViolation(item)
+      const found = findViolation(item, dialect)
       if (found !== null) return found
     }
     return null
@@ -139,10 +186,15 @@ const findViolation = (node: unknown): string | null => {
 
   const type = field(node, 'type')
   if (type === 'assign') return 'Variable assignment (:=) is not allowed in read queries.'
-  if (type === 'var') return 'Session variables (@x, @@x) are not allowed in read queries.'
+  if (type === 'var') {
+    if (dialect === 'postgres' && isDollarString(node)) return null
+    return dialect === 'postgres'
+      ? 'Parameters ($1) are not allowed in read queries: write the values.'
+      : 'Session variables (@x, @@x) are not allowed in read queries.'
+  }
   if (type === 'function') {
     const name = functionName(field(node, 'name'))
-    if (DENIED_FUNCTIONS.has(name)) return `${name}() is not allowed in read queries.`
+    if (isDenied(name, dialect)) return `${name}() is not allowed in read queries.`
   }
   if (typeof type === 'string' && type !== 'select' && STATEMENT_TYPES.has(type)) {
     return `Nested ${type.toUpperCase()} statements are not allowed.`
@@ -150,14 +202,14 @@ const findViolation = (node: unknown): string | null => {
 
   const into = field(node, 'into')
   if (field(into, 'position') || field(into, 'keyword')) {
-    return 'SELECT … INTO (files or variables) is not allowed.'
+    return 'SELECT … INTO (files, variables or new tables) is not allowed.'
   }
   if (field(node, 'locking_read')) {
     return 'Locking reads (FOR UPDATE, FOR SHARE, LOCK IN SHARE MODE) are not allowed.'
   }
 
   for (const value of Object.values(node)) {
-    const found = findViolation(value)
+    const found = findViolation(value, dialect)
     if (found !== null) return found
   }
   return null

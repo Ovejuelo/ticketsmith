@@ -38,9 +38,15 @@ export const preflightChange = async (
     return ok({ rows, sample: [], usesIndex: null, rollbackSql: null })
   }
 
+  const q = (name: string) => quoteIdentifier(name, change.dialect)
   const columns = [...new Set([...change.primaryKey, ...change.columns])]
-  const select = `SELECT ${columns.map(quoteIdentifier).join(', ')} FROM ${quoteIdentifier(change.table)} WHERE ${change.whereSql}`
-  const query = guardReadQuery(select, { dialect: adapter.dialect, maxRows: options.maxRows })
+  const select = `SELECT ${columns.map(q).join(', ')} FROM ${q(change.table)} WHERE ${change.whereSql}`
+  if (adapter.dialect !== change.dialect) {
+    return err(
+      `The change was written for ${change.dialect}, but the database is ${adapter.dialect}.`,
+    )
+  }
+  const query = guardReadQuery(select, { dialect: change.dialect, maxRows: options.maxRows })
   if (!query.ok) return err(`The preflight query was rejected: ${query.error.reason}`)
   const result = await adapter.runReadQuery(query.value)
   if (!result.ok) return err(describeDatabaseError(result.error))
@@ -68,11 +74,12 @@ const HEADER = (changeId: string) => [
 ]
 const FOOTER = ['-- Check the result, then:', '-- COMMIT;', 'ROLLBACK;', '']
 
-const keyCondition = (
-  primaryKey: readonly string[],
-  row: Readonly<Record<string, unknown>>,
-): string =>
-  primaryKey.map((key) => `${quoteIdentifier(key)} = ${sqlLiteral(row[key])}`).join(' AND ')
+const keyCondition = (change: GuardedChange, row: Readonly<Record<string, unknown>>): string =>
+  change.primaryKey
+    .map(
+      (key) => `${quoteIdentifier(key, change.dialect)} = ${sqlLiteral(row[key], change.dialect)}`,
+    )
+    .join(' AND ')
 
 /** One UPDATE per row putting back the values captured before the change. */
 export const updateRollback = (
@@ -84,9 +91,12 @@ export const updateRollback = (
     ...HEADER(changeId),
     ...rows.map(
       (row) =>
-        `UPDATE ${quoteIdentifier(change.table)} SET ${change.columns
-          .map((column) => `${quoteIdentifier(column)} = ${sqlLiteral(row[column])}`)
-          .join(', ')} WHERE ${keyCondition(change.primaryKey, row)};`,
+        `UPDATE ${quoteIdentifier(change.table, change.dialect)} SET ${change.columns
+          .map(
+            (column) =>
+              `${quoteIdentifier(column, change.dialect)} = ${sqlLiteral(row[column], change.dialect)}`,
+          )
+          .join(', ')} WHERE ${keyCondition(change, row)};`,
     ),
     ...FOOTER,
   ].join('\n')
@@ -110,7 +120,7 @@ export const insertRollback = (
         ...HEADER(changeId),
         ...insertedKeys.map(
           (key) =>
-            `DELETE FROM ${quoteIdentifier(change.table)} WHERE ${keyCondition(change.primaryKey, key)};`,
+            `DELETE FROM ${quoteIdentifier(change.table, change.dialect)} WHERE ${keyCondition(change, key)};`,
         ),
         ...FOOTER,
       ].join('\n')

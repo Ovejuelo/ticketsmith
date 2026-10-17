@@ -38,7 +38,7 @@ const TABLES: readonly TableInfo[] = [
   table('order', [column('id', 'PRI', false), column('status')]),
 ]
 
-const guard = (sql: string) => guardChange(sql, { tables: TABLES })
+const guard = (sql: string) => guardChange(sql, { dialect: 'mysql', tables: TABLES })
 
 const accepted = (sql: string) => {
   const result = guard(sql)
@@ -183,5 +183,65 @@ describe('guardChange — rejected changes', () => {
     ["INSERT INTO logs (message) VALUES ('x')", /no primary key/],
   ])('%s', (sql, reason) => {
     expect(rejection(sql)).toMatch(reason)
+  })
+})
+
+describe('guardChange — PostgreSQL', () => {
+  const pg = (sql: string) => guardChange(sql, { dialect: 'postgres', tables: TABLES })
+  const pgAccepted = (sql: string) => {
+    const result = pg(sql)
+    if (!result.ok) throw new Error(`expected "${sql}" to pass, got: ${result.error.reason}`)
+    return result.value
+  }
+  const pgRejection = (sql: string) => {
+    const result = pg(sql)
+    if (result.ok) throw new Error(`expected "${sql}" to be rejected, got: ${result.value.sql}`)
+    return result.error.reason
+  }
+
+  it('accepts a targeted UPDATE, folding unquoted names, with a reusable WHERE', () => {
+    const change = pgAccepted(
+      "UPDATE Accounts SET Status = 'inactive', updated_at = NOW() WHERE Id = 7 AND accounts.status = 'active'",
+    )
+    expect(change).toMatchObject({
+      dialect: 'postgres',
+      kind: 'update',
+      table: 'accounts',
+      primaryKey: ['id'],
+      columns: ['status', 'updated_at'],
+    })
+    expect(change.sql).toBe(
+      'UPDATE "accounts" SET Status = \'inactive\', updated_at = NOW() WHERE Id = 7 AND "accounts".status = \'active\'',
+    )
+    expect(change.whereSql).toBe('Id = 7 AND "accounts".status = \'active\'')
+  })
+
+  it('accepts an INSERT and quotes its columns the PostgreSQL way', () => {
+    const change = pgAccepted(
+      "INSERT INTO notes (account_id, Body) VALUES (7, 'hi'), (8, $$it's$$)",
+    )
+    expect(change).toMatchObject({ kind: 'insert', columns: ['account_id', 'body'], insertRows: 2 })
+    expect(change.sql).toBe(
+      'INSERT INTO "notes" ("account_id", "body") VALUES (7,\'hi\'), (8,$$it\'s$$)',
+    )
+    expect(pgAccepted('INSERT INTO "order" (id, status) VALUES (1, \'new\')').table).toBe('order')
+  })
+
+  it.each([
+    ["INSERT INTO notes (account_id, body) VALUES (1, 'x') RETURNING id", /RETURNING/],
+    ["INSERT INTO notes (id, body) VALUES (1, 'x') ON CONFLICT (id) DO NOTHING", /ON CONFLICT/],
+    ["UPDATE accounts SET status = 'x' FROM notes WHERE accounts.id = notes.account_id", /FROM/],
+    ["UPDATE accounts SET status = 'x' WHERE id = $1", /Parameters/],
+    ["UPDATE accounts SET status = nextval('s') WHERE id = 1", /NEXTVAL\(\) is not allowed/],
+    ["UPDATE accounts SET status = 'a\\' WHERE id = 1", /Backslashes/],
+    ["UPDATE accounts SET status = 'x' WHERE id = 1; DROP TABLE accounts", /exactly one/],
+    ['DELETE FROM accounts WHERE id = 1', /DELETE is never allowed/],
+    ["UPDATE accounts SET status = 'x'", /needs a WHERE/],
+    ["UPDATE accounts SET status = 'x' WHERE id = 1 OR 1 = 1", /must pin rows/],
+    ['UPDATE "Accounts" SET status = \'x\' WHERE id = 1', /Unknown table "Accounts"/],
+    ["UPDATE accounts SET nope = 'x' WHERE id = 1", /Unknown column "nope"/],
+    ['UPDATE accounts SET balance = nope + 1 WHERE id = 1', /Unknown column "nope"/],
+  ])('rejects %s', (sql, reason) => {
+    expect(pgRejection(sql)).toMatch(reason)
   })
 })

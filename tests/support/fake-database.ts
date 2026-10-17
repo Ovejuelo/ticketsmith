@@ -5,6 +5,7 @@ import type {
   DatabaseAdapter,
   DatabaseError,
   DatabaseSchema,
+  Dialect,
   GuardedQuery,
   QueryResult,
 } from '#src/core/database/index.ts'
@@ -15,7 +16,7 @@ export const emptyResult: QueryResult = { columns: [], rows: [], truncated: fals
 /** A scripted DatabaseAdapter; records the SQL it was asked to run. */
 export class FakeDatabaseAdapter implements DatabaseAdapter {
   readonly name: string
-  readonly dialect = 'mysql'
+  dialect: Dialect = 'mysql'
   readonly queries: string[] = []
   pingResult: Result<void, DatabaseError> = ok(undefined)
   canWrite = false
@@ -62,7 +63,7 @@ export class FakeDatabaseAdapter implements DatabaseAdapter {
       })
     }
     this.executed.push(approved.change.sql)
-    return ok({ affectedRows, insertId: this.insertId })
+    return ok({ affectedRows, insertId: this.insertId, insertedKeys: null })
   }
   async [Symbol.asyncDispose]() {
     this.disposed = true

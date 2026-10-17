@@ -23,7 +23,7 @@ export const proposeChangeTool = defineTool({
     sql: z
       .string()
       .describe(
-        'One INSERT … VALUES or UPDATE … WHERE (MySQL); placeholders such as [EMAIL_1]@acme.com are allowed',
+        'One INSERT … VALUES or UPDATE … WHERE in the dialect of the database engine (MySQL or PostgreSQL); placeholders such as [EMAIL_1]@acme.com are allowed',
       ),
     reason: z.string().min(10).describe('Why, in one or two sentences the approver will read'),
     ticket: z.string().optional().describe('The ticket key this change resolves, e.g. OPS-123'),
@@ -59,7 +59,10 @@ export const proposeChangeTool = defineTool({
         `No schema investigated for "${database}" yet: the user must run \`ticketsmith project refresh databases\`.`,
       )
     }
-    const guarded = guardChange(resolved.value, { tables: tables.value })
+    const guarded = guardChange(resolved.value, {
+      dialect: config.type,
+      tables: tables.value,
+    })
     if (!guarded.ok) return err(`Change rejected: ${guarded.error.reason}`)
 
     const adapter = await connections.connect(database)

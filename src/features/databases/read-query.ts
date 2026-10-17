@@ -24,9 +24,8 @@ export const readOne = async (
   sql: string,
   maxRows: number,
 ): Promise<Result<QueryResult, string>> => {
-  const guarded = guardReadQuery(sql, { dialect: 'mysql', maxRows })
-  if (!guarded.ok) return err(`Query rejected: ${guarded.error.reason}`)
-  if (!connections.configs.some((config) => config.name === database)) {
+  const config = connections.configs.find((candidate) => candidate.name === database)
+  if (config === undefined) {
     const target = connections.resolveTarget(database)
     return err(
       target.ok
@@ -34,6 +33,8 @@ export const readOne = async (
         : target.error,
     )
   }
+  const guarded = guardReadQuery(sql, { dialect: config.type, maxRows })
+  if (!guarded.ok) return err(`Query rejected: ${guarded.error.reason}`)
   const adapter = await connections.connect(database)
   if (!adapter.ok) return adapter
   return run(adapter.value, guarded.value)
@@ -46,10 +47,12 @@ export const readGroup = async (
   sql: string,
   maxRows: number,
 ): Promise<Result<readonly DatabaseAnswer[], string>> => {
-  const guarded = guardReadQuery(sql, { dialect: 'mysql', maxRows })
-  if (!guarded.ok) return err(`Query rejected: ${guarded.error.reason}`)
   const members = connections.resolveTarget(group)
   if (!members.ok) return members
+  // A group shares one schema, so one engine (the project schema enforces it).
+  const dialect = members.value[0]?.type ?? 'mysql'
+  const guarded = guardReadQuery(sql, { dialect, maxRows })
+  if (!guarded.ok) return err(`Query rejected: ${guarded.error.reason}`)
 
   const answers: DatabaseAnswer[] = new Array(members.value.length)
   let next = 0

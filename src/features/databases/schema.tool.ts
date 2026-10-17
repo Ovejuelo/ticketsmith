@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { TableInfo } from '../../core/database/index.ts'
+import { DIALECT_LABEL, type TableInfo } from '../../core/database/index.ts'
 import { err, ok } from '../../core/kernel/index.ts'
 import { databasesContext, defineTool } from '../../core/mcp/index.ts'
 
@@ -20,6 +20,7 @@ export const schemaTool = defineTool({
     const members = databases.value.connections.resolveTarget(target)
     if (!members.ok) return members
     const schemaTarget = members.value[0]?.group ?? members.value[0]?.name ?? target
+    const engine = DIALECT_LABEL[members.value[0]?.type ?? 'mysql']
 
     const tables = await databases.value.tables(schemaTarget)
     if (!tables.ok) return tables
@@ -28,7 +29,7 @@ export const schemaTool = defineTool({
         `No investigated schema for "${schemaTarget}". Run \`ticketsmith project refresh databases\`.`,
       )
     }
-    if (table === undefined) return ok(renderTableList(schemaTarget, tables.value))
+    if (table === undefined) return ok(renderTableList(schemaTarget, engine, tables.value))
 
     const found = tables.value.find(
       (candidate) => candidate.name.toLowerCase() === table.toLowerCase(),
@@ -42,13 +43,13 @@ export const schemaTool = defineTool({
         `Table "${table}" not found in "${schemaTarget}".${similar.length > 0 ? ` Similar: ${similar.join(', ')}.` : ''}`,
       )
     }
-    return ok(renderTable(found, tables.value))
+    return ok(`${renderTable(found, tables.value)}\nEngine: ${engine}`)
   },
 })
 
-const renderTableList = (target: string, tables: readonly TableInfo[]): string =>
+const renderTableList = (target: string, engine: string, tables: readonly TableInfo[]): string =>
   [
-    `${tables.length} tables in ${target}:`,
+    `${tables.length} tables in ${target} (${engine}; write SQL in its dialect):`,
     '',
     ...tables.map(
       (t) =>

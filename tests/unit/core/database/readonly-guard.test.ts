@@ -126,3 +126,92 @@ describe('guardReadQuery — rejected', () => {
     accepted("SELECT * FROM t WHERE note = '/*!50000 x */ --1'")
   })
 })
+
+describe('guardReadQuery — PostgreSQL', () => {
+  const pg = (sql: string, maxRows = 200) => guardReadQuery(sql, { dialect: 'postgres', maxRows })
+  const pgAccepted = (sql: string) => {
+    const result = pg(sql)
+    if (!result.ok) throw new Error(`expected "${sql}" to pass, got: ${result.error.reason}`)
+    return result.value.sql
+  }
+  const pgRejection = (sql: string) => {
+    const result = pg(sql)
+    if (result.ok) throw new Error(`expected "${sql}" to be rejected, got: ${result.value.sql}`)
+    return result.error.reason
+  }
+
+  it.each([
+    'SELECT id, email FROM users WHERE id = 1',
+    "SELECT created_at::date, COUNT(*) FROM payments WHERE created_at >= NOW() - INTERVAL '7 days' GROUP BY 1",
+    'WITH recent AS (SELECT * FROM invoices) SELECT customer_id FROM recent',
+    "SELECT data->>'status' FROM events",
+    'SELECT $$it is a string$$, $tag$tagged$tag$',
+    "SELECT 'a -- not a comment', 'it''s' FROM t -- trailing note",
+    'SELECT * FROM generate_series(1, 10)',
+    'SELECT 1 /* plain comment */',
+  ])('accepts %s', (sql) => {
+    pgAccepted(sql)
+  })
+
+  it('regenerates PostgreSQL SQL and folds unquoted names as PostgreSQL does', () => {
+    expect(pgAccepted('SELECT Name FROM Users u WHERE u.Id = 1')).toBe(
+      'SELECT Name FROM "users" AS "u" WHERE "u".Id = 1 LIMIT 201',
+    )
+    expect(pgAccepted('SELECT "Name" FROM "Users" WHERE "Id" IN (1, 2)')).toBe(
+      'SELECT "Name" FROM "Users" WHERE "Id" IN (1, 2) LIMIT 201',
+    )
+    expect(pgAccepted('SELECT x FROM Public.Accounts')).toBe(
+      'SELECT x FROM "public"."accounts" LIMIT 201',
+    )
+    expect(pgAccepted('SELECT * FROM t LIMIT 5 OFFSET 2')).toBe(
+      'SELECT * FROM "t" LIMIT 5 OFFSET 2',
+    )
+    expect(pgRejection('SELECT * FROM "Users" JOIN Users ON true')).toMatch(
+      /both quoted and unquoted/,
+    )
+  })
+
+  it.each([
+    ['SELECT pg_sleep(10)', /PG_SLEEP\(\) is not allowed/],
+    ['SELECT pg_catalog.pg_sleep(10)', /PG_SLEEP\(\) is not allowed/],
+    ['SELECT "pg_sleep"(10)', /PG_SLEEP\(\) is not allowed/],
+    ["SELECT pg_sleep_for('5 minutes')", /PG_SLEEP_FOR/],
+    ["SELECT pg_read_file('/etc/passwd')", /PG_READ_FILE/],
+    ["SELECT pg_ls_dir('.')", /PG_LS_DIR/],
+    ["SELECT lo_import('/etc/passwd')", /LO_IMPORT/],
+    ["SELECT dblink_exec('host=x', 'DROP TABLE t')", /DBLINK_EXEC/],
+    ["SELECT set_config('transaction_read_only', 'off', true)", /SET_CONFIG/],
+    ["SELECT nextval('orders_id_seq')", /NEXTVAL/],
+    ['SELECT pg_advisory_lock(1)', /PG_ADVISORY_LOCK/],
+    ['SELECT pg_terminate_backend(123)', /PG_TERMINATE_BACKEND/],
+    ["SELECT query_to_xml('SELECT pg_sleep(10)', true, false, '')", /QUERY_TO_XML/],
+    ['SELECT txid_current()', /TXID_CURRENT/],
+    ['SELECT * FROM t WHERE id = (SELECT pg_sleep(1) FROM u LIMIT 1)', /PG_SLEEP/],
+  ])('rejects the dangerous function in %s', (sql, reason) => {
+    expect(pgRejection(sql)).toMatch(reason)
+  })
+
+  it.each([
+    ['SELECT * INTO new_table FROM t', /INTO/],
+    ['SELECT * FROM t FOR UPDATE', /could not be parsed as PostgreSQL/],
+    ['SELECT * FROM t FOR SHARE', /could not be parsed as PostgreSQL/],
+    ["COPY t TO '/tmp/x'", /could not be parsed|Only a single SELECT/],
+    ['SELECT 1; DROP TABLE t', /exactly one statement/],
+    // The parser cannot read "$" inside a dollar string, so it fails closed.
+    ['SELECT $a$ x $$ , pg_sleep(1) $$ $a$', /could not be parsed/],
+    ['UPDATE t SET a = 1', /Only a single SELECT/],
+    ['SELECT * FROM t WHERE id = $1', /Parameters/],
+    ['SELECT 1 /* outer /* inner */ , pg_sleep(10) */', /Nested comments/],
+    ["SELECT 'a\\' , pg_sleep(10) --'", /Backslashes/],
+    ["SELECT E'a\\'b'", /Backslashes/],
+    ['SELECT * FROM t LIMIT 5000', /above the maximum/],
+  ])('rejects %s', (sql, reason) => {
+    expect(pgRejection(sql)).toMatch(reason)
+  })
+
+  it('does not read comment markers or names inside dollar-quoted strings', () => {
+    expect(pgAccepted('SELECT $$ /* not a comment $$, 1')).toBe(
+      'SELECT $$ /* not a comment $$, 1 LIMIT 201',
+    )
+  })
+})
