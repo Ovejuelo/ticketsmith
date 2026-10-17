@@ -154,7 +154,7 @@ export const designFeature = async (
   try {
     const started = Date.now()
     const result = await runStructured(
-      services.agent,
+      services.agentFor(project),
       {
         prompt: server.mask(
           [

@@ -129,6 +129,7 @@ export class ClaudeCodeCliRuntime implements AgentRuntime {
       }
     })()
     return ok({
+      runtime: 'Claude Code',
       version: version.stdout.trim().split(/\s/)[0] ?? version.stdout.trim(),
       loggedIn: parsed?.success === true ? parsed.data.loggedIn : false,
       authMethod: parsed?.success === true ? parsed.data.authMethod : undefined,

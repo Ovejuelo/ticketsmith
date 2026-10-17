@@ -32,18 +32,22 @@ export type AgentRun = {
 export type AgentError =
   | { readonly kind: 'not-installed' }
   | { readonly kind: 'not-logged-in' }
+  | { readonly kind: 'sdk-missing' }
+  | { readonly kind: 'no-api-key' }
   | { readonly kind: 'timeout'; readonly afterMs: number }
   | { readonly kind: 'budget-exceeded'; readonly costUsd: number }
   | { readonly kind: 'invalid-output'; readonly issues: string }
   | { readonly kind: 'failed'; readonly message: string }
 
 export type AgentStatus = {
+  /** What runs the agent, e.g. "Claude Code" or "Claude Agent SDK". */
+  readonly runtime: string
   readonly version: string
   readonly loggedIn: boolean
   readonly authMethod: string | undefined
 }
 
-/** Runs one agent session to a structured answer. v1: Claude Code headless; later: the Agent SDK. */
+/** Runs one agent session to a structured answer: Claude Code headless, or the Agent SDK with an API key. */
 export interface AgentRuntime {
   run(request: AgentRequest): Promise<Result<AgentRun, AgentError>>
   /** Whether the agent is installed and signed in (for `doctor`). */
@@ -56,6 +60,10 @@ export const describeAgentError = (error: AgentError): string => {
       return 'Claude Code is not installed: `npm i -g @anthropic-ai/claude-code`, then run `claude` once to sign in.'
     case 'not-logged-in':
       return 'Claude Code is not signed in: run `claude` and log in.'
+    case 'sdk-missing':
+      return 'The Claude Agent SDK is not installed next to Ticketsmith: `npm i ticketsmith @anthropic-ai/claude-agent-sdk` in one folder (then `npx ticketsmith`), or switch back with `ticketsmith project agent --runtime claude-code`.'
+    case 'no-api-key':
+      return 'The Agent SDK needs an Anthropic API key: run `ticketsmith project agent --runtime sdk`, or set TICKETSMITH_ANTHROPIC_API_KEY.'
     case 'timeout':
       return `The agent did not finish within ${Math.round(error.afterMs / 60_000)} minutes (raise agent.timeoutMinutes in project.yaml).`
     case 'budget-exceeded':

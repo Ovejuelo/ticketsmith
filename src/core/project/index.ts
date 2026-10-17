@@ -2,6 +2,7 @@ export { describeProjectError } from './describe-error.ts'
 export { type MigrationReport, migrateLegacyProfiles } from './migrate-profiles.ts'
 export { type Paths, type ProjectPaths, projectPaths, resolvePaths } from './paths.ts'
 export {
+  AGENT_RUNTIMES,
   type AgentConfig,
   type AppConfig,
   BranchNameSchema,

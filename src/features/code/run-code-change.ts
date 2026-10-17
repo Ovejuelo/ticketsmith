@@ -217,7 +217,7 @@ export const runWorktreeChange = async <T extends CodeChange>(
   try {
     const started = Date.now()
     const result = await runStructured(
-      services.agent,
+      services.agentFor(project),
       {
         prompt: `Project "${project.name}".\n${spec.prompt(ticket.value.key, worktrees, server.mask)}`,
         playbook: playbook.value.text,

@@ -19,6 +19,7 @@ const isAgentError = (value: unknown): value is AgentError =>
 export class FakeAgentRuntime implements AgentRuntime {
   readonly requests: AgentRequest[] = []
   status: Result<AgentStatus, AgentError> = ok({
+    runtime: 'Claude Code',
     version: '2.1.301',
     loggedIn: true,
     authMethod: 'claude.ai',

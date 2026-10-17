@@ -247,16 +247,23 @@ export type Integrations = z.infer<typeof IntegrationsSchema>
 export const INTEGRATIONS = ['tickets', 'databases', 'repos'] as const
 export type Integration = (typeof INTEGRATIONS)[number]
 
-/** Limits for agent runs (`process`, deep repository analysis). */
+export const AGENT_RUNTIMES = ['claude-code', 'sdk'] as const
+
+/** What runs the agent, and limits for agent runs (`process`, deep repository analysis). */
 export const AgentConfigSchema = z
   .object({
+    /**
+     * `claude-code`: the installed Claude Code, signed in with your plan. `sdk`: the Claude Agent
+     * SDK with an Anthropic API key, for unattended runs (CI, evals).
+     */
+    runtime: z.enum(AGENT_RUNTIMES).default('claude-code'),
     /** A Claude Code model alias or name (default: the user's Claude Code default). */
     model: z.string().min(1).optional(),
     /** Per run; Claude Code checks it between turns, so a run can end slightly above it. */
     maxBudgetUsd: z.number().positive().max(100).default(3),
     timeoutMinutes: z.number().int().positive().max(240).default(20),
   })
-  .default({ maxBudgetUsd: 3, timeoutMinutes: 20 })
+  .default({ runtime: 'claude-code', maxBudgetUsd: 3, timeoutMinutes: 20 })
 export type AgentConfig = z.infer<typeof AgentConfigSchema>
 
 /** Classification (rules first, then a short LLM run when they are unsure). */

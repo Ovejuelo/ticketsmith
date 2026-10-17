@@ -2,6 +2,7 @@ import { Command } from 'commander'
 import { type CommandDeps, globalOptions, orFail } from '../../core/cli/index.ts'
 import { configuredIntegrations, describeProjectError } from '../../core/project/index.ts'
 import { describeSecretError } from '../../core/secrets/index.ts'
+import { agentCommand } from './agent.command.ts'
 import { initCommand } from './init.command.ts'
 import { addCommand, removeCommand } from './integration.command.ts'
 import { refreshCommand } from './refresh.command.ts'
@@ -18,6 +19,7 @@ export const projectCommand = (deps: CommandDeps): Command => {
     .addCommand(refreshCommand(deps))
     .addCommand(addCommand(deps))
     .addCommand(removeCommand(deps))
+    .addCommand(agentCommand(deps))
     .addCommand(
       new Command('list')
         .description('List projects (* = active)')

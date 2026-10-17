@@ -129,7 +129,7 @@ export const evalCommand = (deps: CommandDeps): Command => {
           cases,
           types,
           {
-            agent: services.agent,
+            agent: services.agentFor(project),
             knowledgeDir: paths.knowledgeDir,
             model: project.agent.model,
             classificationBudgetUsd: project.classification.maxBudgetUsd,

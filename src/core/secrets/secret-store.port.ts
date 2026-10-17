@@ -1,7 +1,10 @@
 import type { Result } from '../kernel/index.ts'
 
-/** `jira-token`, or `db-<database name>` for each configured database. */
-export type SecretName = 'jira-token' | `db-${string}` | `git-host-${string}`
+/** `jira-token`, `db-<database name>` for each database, git host tokens and the agent's API key. */
+export type SecretName = 'jira-token' | 'anthropic-api-key' | `db-${string}` | `git-host-${string}`
+
+/** The Anthropic API key of the Agent SDK runtime (env: TICKETSMITH_ANTHROPIC_API_KEY). */
+export const ANTHROPIC_API_KEY: SecretName = 'anthropic-api-key'
 
 export const databaseSecret = (database: string): SecretName => `db-${database}`
 

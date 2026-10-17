@@ -167,7 +167,7 @@ const analyzeOne = async (
   try {
     const started = Date.now()
     const result = await runStructured(
-      services.agent,
+      services.agentFor(opened.project),
       {
         prompt: [
           `Analyze the repository "${name}" of the project "${opened.project.name}" (clone at commit ${commit.slice(0, 12)}).`,

@@ -38,7 +38,7 @@ export const resolveClassification = async (
     ticket,
     types.value,
     {
-      agent: services.agent,
+      agent: services.agentFor(project),
       knowledgeDir: paths.knowledgeDir,
       startToolServer: options.startToolServer,
       model: project.agent.model,

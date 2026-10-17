@@ -89,7 +89,7 @@ export const processTicket = async (
   const server = await startToolServer()
   try {
     const result = await runStructured(
-      services.agent,
+      services.agentFor(project),
       {
         prompt: ticketPrompt(key, opened),
         playbook: playbook.value.text,

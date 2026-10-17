@@ -1,3 +1,4 @@
+import { AgentSdkRuntime } from '../core/agent/providers/agent-sdk/index.ts'
 import { ClaudeCodeCliRuntime } from '../core/agent/providers/claude-code/claude-code-cli-runtime.ts'
 import { JsonlAuditLog } from '../core/audit/index.ts'
 import type { DatabaseAdapter } from '../core/database/index.ts'
@@ -19,7 +20,7 @@ import {
 } from '../core/project/index.ts'
 import { BitbucketCloudPullRequests } from '../core/repos/providers/bitbucket-cloud/bitbucket-pull-requests.ts'
 import { GitHubPullRequests } from '../core/repos/providers/github/github-pull-requests.ts'
-import { firstAvailable } from '../core/secrets/index.ts'
+import { ANTHROPIC_API_KEY, firstAvailable } from '../core/secrets/index.ts'
 import { EnvSecretStore } from '../core/secrets/providers/env/env-secret-store.ts'
 import { KeyringSecretStore } from '../core/secrets/providers/keyring/keyring-secret-store.ts'
 import type { Services, TicketsConnection } from '../core/services/index.ts'
@@ -48,6 +49,7 @@ export const createServices = ({ env, home, logger }: ServicesOptions): Services
   const keychain = new KeyringSecretStore()
   // Environment first so CI and evals can override the keychain without touching it.
   const secretStores = [new EnvSecretStore(env), keychain]
+  const claudeCode = new ClaudeCodeCliRuntime()
 
   return {
     paths,
@@ -61,7 +63,18 @@ export const createServices = ({ env, home, logger }: ServicesOptions): Services
       config.type === 'mysql'
         ? databaseConnectors.mysql(config, password, logger)
         : databaseConnectors.postgres(config, password, logger),
-    agent: new ClaudeCodeCliRuntime(),
+    agentFor: (project) =>
+      project.agent.runtime === 'sdk'
+        ? new AgentSdkRuntime({
+            apiKey: async () => {
+              const found = await firstAvailable(secretStores, {
+                project: project.name,
+                name: ANTHROPIC_API_KEY,
+              })
+              return found.ok ? (found.value?.value ?? null) : null
+            },
+          })
+        : claudeCode,
     pullRequestHost: (type, apiUrl) =>
       type === 'github'
         ? new GitHubPullRequests({ apiUrl })

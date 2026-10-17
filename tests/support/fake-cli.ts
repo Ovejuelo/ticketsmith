@@ -91,7 +91,7 @@ export const testProject = (
   name,
   integrations: tickets === null ? {} : { tickets: testJira(tickets) },
   masking: { detectors: [...ALL_MASK_KINDS], custom: [], keepEmailDomains: true },
-  agent: { maxBudgetUsd: 3, timeoutMinutes: 20 },
+  agent: { runtime: 'claude-code', maxBudgetUsd: 3, timeoutMinutes: 20 },
   changes: { maxRows: 100 },
   code: { testTimeoutMinutes: 15 },
   classification: { maxBudgetUsd: 0.3 },
@@ -137,7 +137,7 @@ export class FakeCli {
         }
       },
       connectDatabase: (config, password) => this.databases.connect(config.name, password),
-      agent: this.agent,
+      agentFor: () => this.agent,
       pullRequestHost: (type) => this.pullRequests.host(type),
       openAuditLog: () => this.audit,
     }

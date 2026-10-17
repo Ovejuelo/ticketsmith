@@ -151,3 +151,33 @@ describe('ticketsmith project add|remove databases', () => {
     expect(project.ok && project.value.integrations).toEqual({})
   })
 })
+
+describe('ticketsmith project agent', () => {
+  let cli: FakeCli
+  beforeEach(async () => {
+    cli = await (await FakeCli.create()).withProject(testProject(null))
+  })
+  afterEach(() => cli.cleanup())
+
+  it('shows the agent settings and switches to the SDK only with an API key', async () => {
+    expect(await cli.run('project', 'agent')).toBeNull()
+    expect(cli.stdout).toContain('runtime: claude-code')
+
+    expect((await cli.run('project', 'agent', '--runtime', 'sdk'))?.message).toMatch(
+      /TICKETSMITH_ANTHROPIC_API_KEY/,
+    )
+    await cli.secrets.set({ project: 'acme', name: 'anthropic-api-key' }, 'sk-test')
+    expect(
+      await cli.run('project', 'agent', '--runtime', 'sdk', '--budget', '1.5', '--timeout', '10'),
+    ).toBeNull()
+    const project = await cli.services.projects.load('acme')
+    expect(project.ok && project.value.agent).toEqual({
+      runtime: 'sdk',
+      maxBudgetUsd: 1.5,
+      timeoutMinutes: 10,
+    })
+    expect((await cli.run('project', 'agent', '--budget', 'lots'))?.message).toMatch(
+      /Invalid agent settings/,
+    )
+  })
+})

@@ -124,7 +124,12 @@ describe('ClaudeCodeCliRuntime', () => {
   it('checks the version and the sign-in for doctor', async () => {
     expect(await runtime('ok').check()).toEqual({
       ok: true,
-      value: { version: '2.1.301', loggedIn: true, authMethod: 'claude.ai' },
+      value: {
+        runtime: 'Claude Code',
+        version: '2.1.301',
+        loggedIn: true,
+        authMethod: 'claude.ai',
+      },
     })
     expect(await runtime('logged-out').check()).toMatchObject({
       ok: true,

@@ -73,7 +73,7 @@ export const runChecks = async (
     await checkDatabases(services, project.value, add)
   }
   if (tickets !== undefined || project.value.integrations.repos !== undefined) {
-    await checkAgent(services, add)
+    await checkAgent(services, project.value, add)
   }
   if (tickets !== undefined) await checkEvals(services, name.value, add)
   if (project.value.integrations.repos === undefined) {
@@ -267,21 +267,23 @@ const checkRepos = async (
 }
 
 /** Claude Code runs `process` and deep repository analyses. */
-const checkAgent = async (services: Services, add: AddCheck): Promise<void> => {
-  const status = await services.agent.check()
+const checkAgent = async (services: Services, project: Project, add: AddCheck): Promise<void> => {
+  const status = await services.agentFor(project).check()
   if (!status.ok) {
     add('agent', 'fail', describeAgentError(status.error))
   } else if (!status.value.loggedIn) {
     add(
       'agent',
       'fail',
-      `Claude Code ${status.value.version} is not signed in: run \`claude\` and log in`,
+      project.agent.runtime === 'sdk'
+        ? `${status.value.runtime} ${status.value.version} has no API key: run \`ticketsmith project agent --runtime sdk\` or set TICKETSMITH_ANTHROPIC_API_KEY`
+        : `${status.value.runtime} ${status.value.version} is not signed in: run \`claude\` and log in`,
     )
   } else {
     add(
       'agent',
       'ok',
-      `Claude Code ${status.value.version}, signed in${status.value.authMethod === undefined ? '' : ` (${status.value.authMethod})`}`,
+      `${status.value.runtime} ${status.value.version}, signed in${status.value.authMethod === undefined ? '' : ` (${status.value.authMethod})`}`,
     )
   }
 }

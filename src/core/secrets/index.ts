@@ -1,6 +1,7 @@
 export { describeSecretError } from './describe-error.ts'
 export { type FoundSecret, firstAvailable } from './first-available.ts'
 export {
+  ANTHROPIC_API_KEY,
   databaseSecret,
   gitHostSecret,
   type SecretKey,

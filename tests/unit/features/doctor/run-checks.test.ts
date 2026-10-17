@@ -49,7 +49,12 @@ describe('doctor', () => {
 
   it('checks the agent that runs `process`: installed and signed in', async () => {
     await cli.withProject(testProject({ jql: 'project = OPS' }))
-    cli.agent.status = ok({ version: '2.1.301', loggedIn: false, authMethod: undefined })
+    cli.agent.status = ok({
+      runtime: 'Claude Code',
+      version: '2.1.301',
+      loggedIn: false,
+      authMethod: undefined,
+    })
     const checks = await runChecks(cli.services, undefined)
     expect(checks.find((check) => check.name === 'agent')).toEqual({
       name: 'agent',

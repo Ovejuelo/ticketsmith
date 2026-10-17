@@ -5,6 +5,7 @@ import type { Result } from '../kernel/index.ts'
 import type {
   DatabaseConfig,
   Paths,
+  Project,
   ProjectPaths,
   ProjectStore,
   TicketSourceConfig,
@@ -46,8 +47,8 @@ export interface Services {
   connectDatabase(config: DatabaseConfig, password: string): DatabaseAdapter
   /** Opens pull requests on a host type (GitHub, Bitbucket Cloud); `apiUrl` for self-hosted ones. */
   pullRequestHost(type: Exclude<HostType, 'none'>, apiUrl: string | undefined): PullRequestHost
-  /** The agent that runs playbooks (Claude Code headless in v1). */
-  readonly agent: AgentRuntime
+  /** The agent that runs the project's playbooks, from its `agent.runtime`. */
+  agentFor(project: Project): AgentRuntime
   /** One audit file per run in the project's local/audit folder. */
   openAuditLog(project: string, location: ProjectPaths, command: string): AuditLog
 }
