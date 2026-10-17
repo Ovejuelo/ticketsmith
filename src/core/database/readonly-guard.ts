@@ -57,7 +57,6 @@ const POSTGRES_DENIED = new Set([
   'PG_RELOAD_CONF',
   'PG_ROTATE_LOGFILE',
   'PG_NOTIFY',
-  'PG_LOGICAL_EMIT_MESSAGE',
   'PG_PROMOTE',
   'PG_IMPORT_SYSTEM_COLLATIONS',
   // These run SQL passed as text, which the guard never sees.
@@ -86,6 +85,7 @@ const POSTGRES_DENIED_PREFIXES = [
   'PG_REPLICATION_',
   'PG_WAL_',
   'PG_SWITCH_WAL',
+  'PG_LOGICAL_', // pg_logical_slot_get_changes consumes a replication slot, pg_logical_emit_message
 ]
 
 const isDenied = (name: string, dialect: Dialect): boolean =>
@@ -142,6 +142,9 @@ export const guardReadQuery = (
   }
 
   const existingLimit = limitOf(root)
+  if (existingLimit === 'offset-first') {
+    return reject('Write LIMIT before OFFSET (LIMIT n OFFSET m).')
+  }
   if (existingLimit === 'unreadable') {
     return reject('LIMIT must be a plain number (no parameters or expressions).')
   }
@@ -237,23 +240,32 @@ const STATEMENT_TYPES = new Set([
   'use',
 ])
 
-/** The row count of the outermost LIMIT (the last UNION branch carries it), if any. */
-const limitOf = (root: unknown): number | null | 'unreadable' => {
+const hasValues = (limit: unknown): boolean => {
+  const values = field(limit, 'value')
+  return Array.isArray(values) && values.length > 0
+}
+
+/**
+ * The row count of the outermost LIMIT (the last UNION branch carries it), if any. The parser
+ * keeps `OFFSET m` alone as `{ seperator: 'offset', value: [m] }` (no count), and PostgreSQL's
+ * `OFFSET m LIMIT n` puts the count in `_limit`, which the guard does not read: it is rejected.
+ */
+const limitOf = (root: unknown): number | null | 'unreadable' | 'offset-first' => {
   let node: unknown = root
   let limit = field(root, 'limit')
+  let offsetFirst = hasValues(field(root, '_limit'))
   while (field(node, '_next') !== undefined && field(node, '_next') !== null) {
     node = field(node, '_next')
     const branchLimit = field(node, 'limit')
-    if (
-      Array.isArray(field(branchLimit, 'value')) &&
-      (field(branchLimit, 'value') as unknown[]).length > 0
-    ) {
-      limit = branchLimit
-    }
+    if (hasValues(branchLimit)) limit = branchLimit
+    if (hasValues(field(node, '_limit'))) offsetFirst = true
   }
+  if (offsetFirst) return 'offset-first'
   const values = field(limit, 'value')
   if (!Array.isArray(values) || values.length === 0) return null
-  const countNode = field(limit, 'seperator') === ',' ? values[1] : values[0]
+  const separator = field(limit, 'seperator')
+  if (separator === 'offset' && values.length === 1) return null // OFFSET without a LIMIT
+  const countNode = separator === ',' ? values[1] : values[0]
   const count = field(countNode, 'value')
   return field(countNode, 'type') === 'number' && typeof count === 'number' ? count : 'unreadable'
 }

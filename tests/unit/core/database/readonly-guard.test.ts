@@ -166,6 +166,9 @@ describe('guardReadQuery — PostgreSQL', () => {
     expect(pgAccepted('SELECT * FROM t LIMIT 5 OFFSET 2')).toBe(
       'SELECT * FROM "t" LIMIT 5 OFFSET 2',
     )
+    // OFFSET alone is not a LIMIT: the row cap is still added.
+    expect(pgAccepted('SELECT * FROM t OFFSET 3')).toBe('SELECT * FROM "t" OFFSET 3 LIMIT 201')
+    expect(pgAccepted('SELECT 1 UNION SELECT 2 OFFSET 3')).toMatch(/OFFSET 3 LIMIT 201$/)
     expect(pgRejection('SELECT * FROM "Users" JOIN Users ON true')).toMatch(
       /both quoted and unquoted/,
     )
@@ -186,6 +189,8 @@ describe('guardReadQuery — PostgreSQL', () => {
     ['SELECT pg_terminate_backend(123)', /PG_TERMINATE_BACKEND/],
     ["SELECT query_to_xml('SELECT pg_sleep(10)', true, false, '')", /QUERY_TO_XML/],
     ['SELECT txid_current()', /TXID_CURRENT/],
+    ["SELECT * FROM pg_logical_slot_get_changes('slot', NULL, NULL)", /PG_LOGICAL_SLOT/],
+    ["SELECT pg_logical_emit_message(true, 'x', 'y')", /PG_LOGICAL_EMIT_MESSAGE/],
     ['SELECT * FROM t WHERE id = (SELECT pg_sleep(1) FROM u LIMIT 1)', /PG_SLEEP/],
   ])('rejects the dangerous function in %s', (sql, reason) => {
     expect(pgRejection(sql)).toMatch(reason)
@@ -205,6 +210,10 @@ describe('guardReadQuery — PostgreSQL', () => {
     ["SELECT 'a\\' , pg_sleep(10) --'", /Backslashes/],
     ["SELECT E'a\\'b'", /Backslashes/],
     ['SELECT * FROM t LIMIT 5000', /above the maximum/],
+    ['SELECT * FROM t LIMIT 5000 OFFSET 1', /above the maximum/],
+    // The parser hides this LIMIT from the guard; it must not slip past the row cap.
+    ['SELECT * FROM t OFFSET 1 LIMIT 5000', /LIMIT before OFFSET/],
+    ['SELECT * FROM t OFFSET 1 LIMIT 5', /LIMIT before OFFSET/],
   ])('rejects %s', (sql, reason) => {
     expect(pgRejection(sql)).toMatch(reason)
   })
