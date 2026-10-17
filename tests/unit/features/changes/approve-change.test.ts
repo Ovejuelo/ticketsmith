@@ -149,6 +149,30 @@ describe('approving a change', () => {
     expect(cli.databases.get('shard1').executed).toEqual([])
   })
 
+  it('refuses a stored ticket that is not a key, before running anything', async () => {
+    const opened = await propose(proposal({ ticket: '../../../ESCAPE' }))
+    expect(
+      await approveAndExecute(cli.services, opened, 'cr-0000000a', typing('shard1')),
+    ).toMatchObject({ ok: false, error: expect.stringContaining('invalid ticket') })
+    expect(cli.databases.get('shard1').executed).toEqual([])
+  })
+
+  it('runs nothing when the change expired while the prompt was open', async () => {
+    const opened = await propose(proposal())
+    let clock = Date.now()
+    const io = {
+      show: (text: string) => shown.push(text),
+      confirm: async () => {
+        clock += 2 * 60 * 60 * 1000
+        return 'shard1'
+      },
+    }
+    expect(
+      await approveAndExecute(cli.services, opened, 'cr-0000000a', io, () => new Date(clock)),
+    ).toMatchObject({ ok: false, error: expect.stringContaining('expired') })
+    expect(cli.databases.get('shard1').executed).toEqual([])
+  })
+
   it('records a rolled-back mismatch as failed', async () => {
     const opened = await propose(proposal())
     cli.databases.get('shard1').affectedRows = () => 3

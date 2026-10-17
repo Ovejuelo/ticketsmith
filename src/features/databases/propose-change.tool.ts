@@ -9,6 +9,7 @@ import {
 } from '../../core/database/index.ts'
 import { err, ok } from '../../core/kernel/index.ts'
 import { databasesContext, defineTool, unknownPlaceholdersMessage } from '../../core/mcp/index.ts'
+import { TicketKeySchema } from '../../core/tickets/index.ts'
 import { renderMarkdownTable } from './read-query.ts'
 
 export const CHANGE_RULES =
@@ -49,6 +50,10 @@ export const proposeChangeTool = defineTool({
         `Database "${database}" is read-only in this project: changes cannot be proposed there.`,
       )
     }
+    const ticketKey = ticket?.trim().toUpperCase() || null
+    if (ticketKey !== null && !TicketKeySchema.safeParse(ticketKey).success) {
+      return err(`Invalid ticket "${ticket}": use a key such as OPS-123, or leave it out.`)
+    }
     const resolved = context.resolvePlaceholders(sql)
     if (!resolved.ok) return err(unknownPlaceholdersMessage(resolved.error))
 
@@ -83,7 +88,7 @@ export const proposeChangeTool = defineTool({
     const request: ChangeRequest = {
       id,
       database,
-      ticket: ticket?.trim().toUpperCase() || null,
+      ticket: ticketKey,
       reason,
       sql: guarded.value.sql,
       kind: guarded.value.kind,

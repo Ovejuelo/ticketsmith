@@ -19,6 +19,7 @@ import { err, ok, type Result } from '../../core/kernel/index.ts'
 import { describeOutputError, ticketOutputDir, writeOutputFiles } from '../../core/output/index.ts'
 import { DatabaseConnections, type Services } from '../../core/services/index.ts'
 import { describeStorageError, withProjectDatabase } from '../../core/storage/index.ts'
+import { TicketKeySchema } from '../../core/tickets/index.ts'
 import { renderChange } from './render-change.ts'
 
 /** The only place an ApprovedChange is made: after the human typed the database name. */
@@ -68,6 +69,9 @@ export const approveAndExecute = async (
     return err(`Change ${id} is ${change.status}; only proposed changes can be approved.`)
   if (isExpired(change, now()))
     return err(`Change ${id} expired at ${change.expiresAt}; ask the agent to propose it again.`)
+  // The key names the output folder, so it must be a plain key (never a path).
+  if (change.ticket !== null && !TicketKeySchema.safeParse(change.ticket).success)
+    return err(`Change ${id} names an invalid ticket "${change.ticket}"; reject it.`)
 
   const config = opened.project.integrations.databases?.find((db) => db.name === change.database)
   if (config === undefined) return err(`Database "${change.database}" is no longer configured.`)
@@ -108,6 +112,9 @@ export const approveAndExecute = async (
       `Type the database name (${change.database}) to run this change, or anything else to cancel`,
     )
     if (typed.trim() !== change.database) return err('Not approved: nothing ran.')
+    // The prompt may have stayed open past the expiry.
+    if (isExpired(change, now()))
+      return err(`Change ${id} expired at ${change.expiresAt} while waiting: nothing ran.`)
 
     const by = userInfo().username
     const started = Date.now()

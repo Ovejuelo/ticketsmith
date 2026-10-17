@@ -163,6 +163,13 @@ describe('MCP tool db_propose_change', () => {
       expect(
         await attempt({ sql: "UPDATE accounts SET status = 'x' WHERE email = '[EMAIL_9]'" }),
       ).toMatch(/Unknown placeholder/)
+      // The ticket names an output folder: a path must never get through.
+      expect(
+        await attempt({
+          sql: "UPDATE accounts SET status = 'x' WHERE id = 1",
+          ticket: '../../../tmp/x',
+        }),
+      ).toMatch(/Invalid ticket/)
       expect(await new ChangeStore(changesDir).list()).toEqual([])
     })
   })
