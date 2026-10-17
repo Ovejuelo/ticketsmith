@@ -16,6 +16,8 @@ Please **do not open a public issue**. Report it privately through GitHub: *Secu
 
 For code changes it gets file tools confined to the ticket worktrees, and it never gets a shell.
 
+**Known limit: test runs execute code the agent wrote.** `code_run_tests` runs the command you configured, but that command runs the repository's tests and scripts, which the agent can edit. A test can therefore run anything your user can: read files in your home folder, use the network, call other programs. Ticketsmith removes credentials from the environment and kills the run on timeout, but it does not sandbox it yet (roadmap phase 13). Turn on `allowCodeChanges` only for repositories and tickets you trust, and read the diff before pushing.
+
 **What it can never do.**
 - It holds no credentials and no raw database connection: passwords and tokens are read from the keychain by the Ticketsmith process only.
 - It cannot run SQL that writes. A proposal is executed only after a person types the database name in a terminal (ADR 0023), and DELETE and DDL are rejected outright.

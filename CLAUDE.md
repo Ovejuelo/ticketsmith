@@ -77,7 +77,7 @@ Personal TypeScript CLI that reads tickets (JIRA Cloud first) and drives a Claud
 - Claude Code headless (`core/agent/providers/claude-code`): there is no `--max-turns`; `--max-budget-usd` is checked between turns. On errors it still prints the result JSON on stdout with exit 1. Re-verify flags with `claude --help` after Claude Code upgrades.
 - The MCP SDK's transport classes don't satisfy `exactOptionalPropertyTypes`: cast them to `Transport` where connected (see `bootstrap/tool-session.ts`).
 - Writes: `executeChange` only accepts an `ApprovedChange`, made only in `features/changes/approve-change.ts` after the typed confirmation. A test fails if any `*.tool.ts` mentions `executeChange`/`ApprovedChange`. mysql2 reports matched rows as `affectedRows` (FOUND_ROWS), which is what the preflight counts.
-- Code runs (`ticketsmith code`) give the agent Read/Edit/Write/Glob/Grep confined to the worktrees by `--restricted` (verified live) and never Bash; tests only through `code_run_tests`. Pushes need an interactive yes and `checkPushable`; never `--force`. Tests set a git identity in `tests/support/setup.ts` (CI has none).
+- Code runs (`ticketsmith code`) give the agent Read/Edit/Write/Glob/Grep confined to the worktrees by `--restricted` (verified live) and never Bash; tests only through `code_run_tests`, which runs tests the agent can edit and is not sandboxed yet (SECURITY.md). Pushes need an interactive yes and `checkPushable`; never `--force`. Tests set a git identity in `tests/support/setup.ts` (CI has none).
 - Masking favors precision (checksums, structure); add a regression test with a real anonymized sample for every false positive or miss found.
 
 ## Workflow
