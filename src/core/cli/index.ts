@@ -12,10 +12,12 @@ export { CliError, fail, type Io } from './io.ts'
 export {
   type ConnectedTickets,
   NO_DATABASES,
+  NO_METABASE,
   NO_TICKET_SOURCE,
   type OpenedProject,
   openProject,
   requireDatabases,
+  requireMetabase,
   requireTickets,
 } from './open-project.ts'
 export { parsePositiveInt } from './parse-options.ts'

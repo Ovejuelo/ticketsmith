@@ -1,6 +1,7 @@
-import type { Project, ProjectPaths, TicketSourceConfig } from '../project/index.ts'
+import type { MetabaseClient } from '../metabase/index.ts'
+import type { MetabaseConfig, Project, ProjectPaths, TicketSourceConfig } from '../project/index.ts'
 import { describeProjectError } from '../project/index.ts'
-import { describeSecretError } from '../secrets/index.ts'
+import { describeSecretError, METABASE_API_KEY, secretEnvVariable } from '../secrets/index.ts'
 import { DatabaseConnections, type Services, type TicketsConnection } from '../services/index.ts'
 import { orFail } from './command.ts'
 import { fail } from './io.ts'
@@ -49,6 +50,24 @@ export const requireTickets = async (
     config,
     tokenSource: token.source,
   }
+}
+
+export const NO_METABASE =
+  'This project has no Metabase. Add it with `ticketsmith project add metabase`.'
+
+/** Connects the project's Metabase, or explains how to add it. */
+export const requireMetabase = async (
+  services: Services,
+  { project }: OpenedProject,
+): Promise<{ readonly client: MetabaseClient; readonly config: MetabaseConfig }> => {
+  const config = project.integrations.metabase ?? fail(NO_METABASE)
+  const key = orFail(await services.loadSecret(project.name, METABASE_API_KEY), describeSecretError)
+  if (key === null) {
+    fail(
+      `No Metabase API key for project "${project.name}": run \`ticketsmith project add metabase\` or set ${secretEnvVariable(METABASE_API_KEY)}.`,
+    )
+  }
+  return { client: services.connectMetabase(config.url, key.value), config }
 }
 
 export const NO_DATABASES =

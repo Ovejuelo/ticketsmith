@@ -4,6 +4,7 @@ export {
   ANTHROPIC_API_KEY,
   databaseSecret,
   gitHostSecret,
+  METABASE_API_KEY,
   type SecretKey,
   type SecretName,
   type SecretStore,

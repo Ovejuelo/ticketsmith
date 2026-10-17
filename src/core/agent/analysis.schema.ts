@@ -27,6 +27,13 @@ export const TicketAnalysisSchema = z.object({
     .min(1)
     .optional()
     .describe('The status the ticket should move to next, if any (a person applies it)'),
+  reportSql: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'Report requests only: the final SQL with Metabase {{variables}}, without code fences',
+    ),
 })
 export type TicketAnalysis = z.infer<typeof TicketAnalysisSchema>
 

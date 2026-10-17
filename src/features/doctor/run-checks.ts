@@ -3,9 +3,11 @@ import { join } from 'node:path'
 import { describeAgentError } from '../../core/agent/index.ts'
 import { loadTicketTypes, TICKET_TYPES_FILE } from '../../core/classification/index.ts'
 import { describeDatabaseError } from '../../core/database/index.ts'
+import { describeMetabaseError } from '../../core/metabase/index.ts'
 import {
   configuredIntegrations,
   describeProjectError,
+  type MetabaseConfig,
   type Project,
   type RepositoryConfig,
   type TicketSourceConfig,
@@ -20,7 +22,12 @@ import {
   remoteBranches,
   resolveCommit,
 } from '../../core/repos/index.ts'
-import { describeSecretError, gitHostSecret } from '../../core/secrets/index.ts'
+import {
+  describeSecretError,
+  gitHostSecret,
+  METABASE_API_KEY,
+  secretEnvVariable,
+} from '../../core/secrets/index.ts'
 import { DatabaseConnections, type Services } from '../../core/services/index.ts'
 import { describeTicketSourceError, type TicketSourceError } from '../../core/tickets/index.ts'
 import { checkNodeRuntime, fnmNodeVersions } from './node-runtime.ts'
@@ -89,7 +96,44 @@ export const runChecks = async (
         add,
       )
   }
+  const metabase = project.value.integrations.metabase
+  if (metabase !== undefined) await checkMetabase(services, project.value, metabase, add)
   return checks
+}
+
+/** The Metabase API key works and every mapped database still exists there. */
+const checkMetabase = async (
+  services: Services,
+  project: Project,
+  config: MetabaseConfig,
+  add: AddCheck,
+): Promise<void> => {
+  const key = await services.loadSecret(project.name, METABASE_API_KEY)
+  if (!key.ok) return add('metabase', 'fail', describeSecretError(key.error))
+  if (key.value === null) {
+    return add(
+      'metabase',
+      'fail',
+      `No API key: run \`ticketsmith project add metabase\` or set ${secretEnvVariable(METABASE_API_KEY)}`,
+    )
+  }
+  const databases = await services.connectMetabase(config.url, key.value.value).databases()
+  if (!databases.ok) return add('metabase', 'fail', describeMetabaseError(databases.error))
+  const missing = Object.entries(config.databaseIds).filter(
+    ([, id]) => !databases.value.some((database) => database.id === id),
+  )
+  if (missing.length > 0) {
+    return add(
+      'metabase',
+      'fail',
+      `Mapped databases missing in Metabase: ${missing.map(([name, id]) => `${name} (${id})`).join(', ')}`,
+    )
+  }
+  add(
+    'metabase',
+    'ok',
+    `${config.url}: ${Object.keys(config.databaseIds).length} mapped database(s); questions are created only by \`ticketsmith metabase publish\` after you agree`,
+  )
 }
 
 const checkTickets = async (

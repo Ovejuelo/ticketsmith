@@ -19,7 +19,12 @@ import {
   type ProjectPaths,
 } from '../../core/project/index.ts'
 import { cloneDir } from '../../core/repos/index.ts'
-import { databaseSecret, describeSecretError, type SecretName } from '../../core/secrets/index.ts'
+import {
+  databaseSecret,
+  describeSecretError,
+  METABASE_API_KEY,
+  type SecretName,
+} from '../../core/secrets/index.ts'
 import type { Services } from '../../core/services/index.ts'
 import { describeStorageError, withProjectDatabase } from '../../core/storage/index.ts'
 import {
@@ -27,6 +32,11 @@ import {
   configureDatabasesInteractively,
   type DatabaseFlags,
 } from './database-setup.ts'
+import {
+  addMetabaseFromFlags,
+  configureMetabaseInteractively,
+  type MetabaseFlags,
+} from './metabase-setup.ts'
 import { investigateProject } from './onboarding.ts'
 import { openByName, printReports } from './project-ui.ts'
 import {
@@ -48,18 +58,20 @@ const KNOWLEDGE_DIRS: Readonly<Record<Integration, string>> = {
   tickets: 'tickets',
   databases: 'databases',
   repos: 'repos',
+  metabase: 'metabase',
 }
 
 /** The keychain entries an integration owns in a project. */
 const secretsOf = (project: Project, integration: Integration): readonly SecretName[] => {
   if (integration === 'tickets') return ['jira-token']
+  if (integration === 'metabase') return [METABASE_API_KEY]
   if (integration === 'databases') {
     return (project.integrations.databases ?? []).map((database) => databaseSecret(database.name))
   }
   return [] // repositories use the user's own git credentials
 }
 
-type AddFlags = JiraFlags & DatabaseFlags & RepoFlags
+type AddFlags = JiraFlags & DatabaseFlags & RepoFlags & MetabaseFlags
 
 export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
   new Command('add')
@@ -98,7 +110,12 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
       '--allow-changes',
       'databases: let the agent propose changes you approve (db_propose_change)',
     )
-    .option('--url <url>', 'repos: clone URL, ssh or https (non-interactive)')
+    .option('--url <url>', 'repos: clone URL, ssh or https; metabase: site URL (non-interactive)')
+    .option(
+      '--map <pairs>',
+      'metabase: project database = Metabase database id, e.g. shard1=3,billing=4',
+    )
+    .option('--collection <id>', 'metabase: collection for new questions', parsePositiveInt)
     .option('--fix-branch <branch>', 'repos: base branch for fixes (default: the remote default)')
     .option(
       '--feature-branch <branch>',
@@ -130,10 +147,14 @@ export const addCommand = ({ io, servicesFor }: CommandDeps): Command =>
         updated = io.interactive
           ? (await configureDatabasesInteractively(services, project)).project
           : await addDatabaseFromFlags(services, io, project, flags)
-      } else {
+      } else if (integration === 'repos') {
         updated = io.interactive
           ? (await configureReposInteractively(services, project, paths)).project
           : await addRepositoryFromFlags(services, project, paths, flags)
+      } else {
+        updated = io.interactive
+          ? await configureMetabaseInteractively(services, project)
+          : await addMetabaseFromFlags(services, project, flags)
       }
 
       const reports = await investigateProject(services, await openByName(services, updated.name), [

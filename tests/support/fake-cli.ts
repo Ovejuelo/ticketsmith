@@ -18,6 +18,7 @@ import type { Services, TicketsConnection } from '#src/core/services/index.ts'
 import { FakeAgentRuntime } from '#tests/support/fake-agent-runtime.ts'
 import { FakeDatabases } from '#tests/support/fake-database.ts'
 import { FakeJiraDiscovery } from '#tests/support/fake-jira-discovery.ts'
+import { FakeMetabase } from '#tests/support/fake-metabase.ts'
 import { FakePullRequestHosts } from '#tests/support/fake-pull-request-host.ts'
 import { FakeTicketWriter } from '#tests/support/fake-ticket-writer.ts'
 import { InMemoryAuditLog } from '#tests/support/in-memory-audit-log.ts'
@@ -108,6 +109,7 @@ export class FakeCli {
   readonly databases = new FakeDatabases()
   readonly agent = new FakeAgentRuntime()
   readonly writer = new FakeTicketWriter()
+  readonly metabase = new FakeMetabase()
   readonly pullRequests = new FakePullRequestHosts()
   stdout = ''
   stderr = ''
@@ -137,6 +139,7 @@ export class FakeCli {
         }
       },
       connectDatabase: (config, password) => this.databases.connect(config.name, password),
+      connectMetabase: (url, apiKey) => this.metabase.connect(url, apiKey),
       agentFor: () => this.agent,
       pullRequestHost: (type) => this.pullRequests.host(type),
       openAuditLog: () => this.audit,

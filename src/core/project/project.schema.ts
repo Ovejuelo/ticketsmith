@@ -254,14 +254,27 @@ export const RepositoriesSchema = z
     })
   })
 
+/** Metabase, where report queries become saved questions (`ticketsmith metabase publish`). */
+export const MetabaseConfigSchema = z.object({
+  type: z.literal('metabase'),
+  /** The Metabase site, e.g. https://metabase.acme.com */
+  url: z.url({ protocol: /^https?$/ }),
+  /** Project database name → its database id in Metabase. */
+  databaseIds: z.record(DatabaseNameSchema, z.number().int().positive()).default({}),
+  /** The collection new questions go to (default: the API key's root collection). */
+  collectionId: z.number().int().positive().optional(),
+})
+export type MetabaseConfig = z.infer<typeof MetabaseConfigSchema>
+
 export const IntegrationsSchema = z.object({
   tickets: TicketSourceConfigSchema.optional(),
   databases: DatabasesSchema.optional(),
   repos: RepositoriesSchema.optional(),
+  metabase: MetabaseConfigSchema.optional(),
 })
 export type Integrations = z.infer<typeof IntegrationsSchema>
 
-export const INTEGRATIONS = ['tickets', 'databases', 'repos'] as const
+export const INTEGRATIONS = ['tickets', 'databases', 'repos', 'metabase'] as const
 export type Integration = (typeof INTEGRATIONS)[number]
 
 export const AGENT_RUNTIMES = ['claude-code', 'sdk'] as const

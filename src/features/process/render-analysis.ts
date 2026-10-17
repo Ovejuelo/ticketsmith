@@ -44,4 +44,12 @@ export const renderAnalysis = (
     '',
     list(analysis.openQuestions, 'None.'),
     '',
+    ...(analysis.reportSql === undefined
+      ? []
+      : [
+          '## Report query',
+          '',
+          'In `report.sql`; publish it as a Metabase question with `ticketsmith metabase publish`.',
+          '',
+        ]),
   ].join('\n')

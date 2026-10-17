@@ -7,6 +7,7 @@ import { doctorFeature } from '../features/doctor/index.ts'
 import { evalsFeature } from '../features/evals/index.ts'
 import { knowledgeFeature } from '../features/knowledge/index.ts'
 import { mcpFeature } from '../features/mcp/index.ts'
+import { metabaseFeature } from '../features/metabase/index.ts'
 import { processFeature } from '../features/process/index.ts'
 import { projectsFeature } from '../features/projects/index.ts'
 import { reposFeature } from '../features/repos/index.ts'
@@ -23,6 +24,7 @@ export const FEATURES: readonly Feature[] = [
   codeFeature,
   databasesFeature,
   changesFeature,
+  metabaseFeature,
   reposFeature,
   knowledgeFeature,
   mcpFeature,

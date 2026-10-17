@@ -2,6 +2,7 @@ import type { AgentRuntime } from '../agent/index.ts'
 import type { AuditLog } from '../audit/index.ts'
 import type { DatabaseAdapter } from '../database/index.ts'
 import type { Result } from '../kernel/index.ts'
+import type { MetabaseClient } from '../metabase/index.ts'
 import type {
   DatabaseConfig,
   Paths,
@@ -47,6 +48,8 @@ export interface Services {
   connectDatabase(config: DatabaseConfig, password: string): DatabaseAdapter
   /** Opens pull requests on a host type (GitHub, Bitbucket Cloud); `apiUrl` for self-hosted ones. */
   pullRequestHost(type: Exclude<HostType, 'none'>, apiUrl: string | undefined): PullRequestHost
+  /** A Metabase API client for the project's Metabase site. */
+  connectMetabase(url: string, apiKey: string): MetabaseClient
   /** The agent that runs the project's playbooks, from its `agent.runtime`. */
   agentFor(project: Project): AgentRuntime
   /** One audit file per run in the project's local/audit folder. */

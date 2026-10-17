@@ -14,6 +14,7 @@ import {
   withProjectDatabase,
 } from '../../core/storage/index.ts'
 import { DATABASES_KNOWLEDGE_DIR, investigateDatabases } from './investigate-databases.ts'
+import { investigateMetabase, METABASE_KNOWLEDGE_FILE } from './investigate-metabase.ts'
 import { investigateRepos } from './investigate-repos.ts'
 import { investigateTickets, TICKETS_KNOWLEDGE_FILE } from './investigate-tickets.ts'
 import { REPOS_KNOWLEDGE_DIR } from './repo-catalog.ts'
@@ -35,6 +36,11 @@ const INVESTIGATORS: Readonly<Record<Integration, Investigator>> = {
     run: investigateDatabases,
   },
   repos: { title: 'Repositories', knowledgeFile: `${REPOS_KNOWLEDGE_DIR}/`, run: investigateRepos },
+  metabase: {
+    title: 'Metabase',
+    knowledgeFile: METABASE_KNOWLEDGE_FILE,
+    run: (services, opened) => investigateMetabase(services, opened),
+  },
 }
 
 export type StepReport = {

@@ -21,6 +21,7 @@ describe('ticketsmith project status', () => {
         { integration: 'tickets', configured: true, investigation: null },
         { integration: 'databases', configured: false, investigation: null },
         { integration: 'repos', configured: false, investigation: null },
+        { integration: 'metabase', configured: false, investigation: null },
       ],
       repositories: [],
       knowledge: [],
@@ -38,6 +39,7 @@ describe('ticketsmith project status', () => {
         },
         { integration: 'databases', configured: false },
         { integration: 'repos', configured: false },
+        { integration: 'metabase', configured: false },
       ],
       knowledge: ['brief.md', 'ticket-types.md', 'tickets/jira.md'],
     })

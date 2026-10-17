@@ -11,6 +11,7 @@ import {
   PostgresDatabaseAdapter,
 } from '../core/database/providers/postgres/index.ts'
 import { ConfigError, type Logger } from '../core/kernel/index.ts'
+import { MetabaseHttpClient } from '../core/metabase/providers/http/index.ts'
 import {
   type DatabaseConfig,
   type JiraCloudSourceConfig,
@@ -71,6 +72,7 @@ export const createServices = ({ env, home, logger }: ServicesOptions): Services
       config.type === 'mysql'
         ? databaseConnectors.mysql(config, password, logger)
         : databaseConnectors.postgres(config, password, logger),
+    connectMetabase: (url, apiKey) => new MetabaseHttpClient({ url, apiKey }),
     agentFor: (project) =>
       project.agent.runtime === 'sdk'
         ? new AgentSdkRuntime({

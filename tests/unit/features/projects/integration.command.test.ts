@@ -72,6 +72,7 @@ describe('ticketsmith project add|remove', () => {
       { integration: 'tickets', configured: false, investigation: null },
       { integration: 'databases', configured: false, investigation: null },
       { integration: 'repos', configured: false, investigation: null },
+      { integration: 'metabase', configured: false, investigation: null },
     ])
   })
 
