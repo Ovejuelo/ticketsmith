@@ -36,3 +36,4 @@ Template: `# NNNN. Title` · **Status** · **Context** (why it came up) · **Dec
 | [0028](0028-database-engines-by-dialect.md) | Database engines by dialect, proven by one adapter contract |
 | [0029](0029-agent-runtimes.md) | Agent runtimes: signed-in Claude Code or the Agent SDK with an API key |
 | [0030](0030-ticket-sources-and-metabase.md) | More ticket sources (JIRA Data Center) and Metabase as an integration |
+| [0031](0031-investigations-without-a-ticket.md) | Investigations without a ticket: a read-only agent run from a question |

@@ -79,6 +79,7 @@ ticketsmith db ask "SELECT id, email FROM users WHERE id = 1" --db shard1
 ticketsmith db ask "SELECT id FROM accounts WHERE email = 'x@acme.com'" --group shards
 ticketsmith process OPS-123           # the agent investigates: out/OPS-123/analysis.md + jira_comment.md
 ticketsmith process --next            # the next ticket of the JQL without an analysis
+ticketsmith investigate "review how accounts are deactivated"  # no ticket: out/investigations/<date>-<slug>/
 ticketsmith project refresh repos --deep  # the agent writes knowledge/repos/<name>.analysis.md
 ticketsmith metabase publish OPS-124  # out/OPS-124/report.sql as a Metabase question, after you agree
 ticketsmith mcp                       # the MCP server (the plugin runs it for you)
@@ -104,6 +105,10 @@ Tools only appear when the project has the integration they need. Without the pl
 ### Investigating a ticket end to end
 
 `ticketsmith process <KEY>` runs Claude Code headless (your own Claude Code login) with the `bug` playbook and **only Ticketsmith's tools**: no shell, no file access, nothing that writes. Everything the agent reads is masked; when it finishes, the real values are put back in your local copy of its answer (secrets stay masked). It writes `out/<KEY>/analysis.md` (probable cause, evidence with `repo/file:line` and queries, confidence, next steps) and `jira_comment.md`, which you review and paste yourself. Limits live in `project.yaml` (`agent.maxBudgetUsd`, default $3; `agent.timeoutMinutes`, default 20); `--budget` and `--model` override them. Add your own playbooks as `knowledge/playbooks/<name>.md` and use them with `--playbook <name>`.
+
+### Investigating without a ticket
+
+`ticketsmith investigate "<question>"` runs the same agent with a question instead of a ticket, to review a feature, a flow or the data before anyone reports a problem. It is read-only (no code changes, no proposed database writes) and works for projects without a ticket source. The question is masked before it reaches the agent. It writes `out/investigations/<date>-<slug>/analysis.md` with findings ordered by severity, each with its confidence and evidence. The agent reads code and data; it does not run the application, so findings come from analysis, not execution.
 
 ### JIRA token
 

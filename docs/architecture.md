@@ -14,7 +14,7 @@ flowchart LR
   end
   bootstrap --> features
   subgraph features[features/ — what Ticketsmith does]
-    projects & doctor & tickets & process & dbs[databases] & changes & mbf[metabase] & code & repos & know[knowledge] & mcpf[mcp]
+    projects & doctor & tickets & process & inv[investigate] & dbs[databases] & changes & mbf[metabase] & code & repos & know[knowledge] & mcpf[mcp]
   end
   features --> core
   subgraph core[core/ — reusable building blocks]
@@ -55,6 +55,7 @@ src/
 │   ├── repos/                    MCP tools repo_list, repo_files, repo_search, repo_read
 │   ├── knowledge/                MCP tools knowledge_read, knowledge_search
 │   ├── process/                  process <KEY> | --next: the agent investigates a ticket
+│   ├── investigate/              investigate "<question>": the agent investigates without a ticket, read-only
 │   ├── changes/                  changes list|show|approve|reject: the human decides on proposed DB changes
 │   ├── metabase/                 metabase publish <KEY>: report.sql as a Metabase question, after you agree
 │   ├── classify/                 classify <KEY>

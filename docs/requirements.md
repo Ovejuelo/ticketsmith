@@ -330,7 +330,18 @@ Autonomy: steps 1–3 are L1 (files only); steps 4–6 are L3 (§4.9).
 
 **As implemented (phase 9, ADR 0025):** `ticketsmith feature <KEY>` runs the design (read-only tools only) and writes `out/<KEY>/feature/spec.md` and `plan.md`. When it has blocking questions it writes `questions.md`, where the person answers under each "Answer:" (or forwards them to the requester), and the next `feature <KEY>` continues with the answers. `feature approve <KEY>` (interactive only) or `feature reject <KEY> --feedback "…"` (redesign with it). `feature implement <KEY>` needs the approved plan: one worktree per repository with `allowCodeChanges`, from `branches.feature`, on `featureBranchPattern` (default `feature/{key}-{slug}`, the same in every repository). Ticketsmith re-runs the tests and writes a summary with the acceptance criteria met or not and the new migration files found in the diff. `feature push <KEY>` asks per repository and opens pull requests that name the ticket and link the sibling pull requests. The state (`state.json`) keeps real values locally; everything sent back to the agent (answers, feedback, the previous design, the approved plan) is masked first with that run's vault.
 
-### 4.16 Distribution
+### 4.16 Investigations without a ticket
+
+Not every question starts as a ticket: a team may want to review a feature, a flow or the data before anyone reports a problem.
+
+- `ticketsmith investigate "<question>"` runs the same agent as `process`, with a free-form question instead of a ticket key. It needs at least one of a ticket source, databases or repositories, but no ticket source in particular.
+- **Read-only:** the agent gets every tool the project allows except `db_propose_change` and the code-session tools. It cannot change code or propose database writes.
+- **Masked question:** the question is masked with the run's vault before it reaches the prompt, so an email or account id typed by the person reaches the agent as the same placeholder the tools use. The audit records the masked question.
+- **Playbook** `investigate` (built-in, overridable with `knowledge/playbooks/investigate.md`): every finding has a severity (high, medium, low, info), a confidence and evidence (`repo/file:line`, a query, a ticket or knowledge); "no findings" is a valid answer. The agent never claims it ran the code.
+- **Output:** `out/investigations/<date>-<slug>/` with `question.md`, `analysis.md` (revealed locally, secrets stay masked) and `run.json` (no content). A second run of the same question the same day gets `-2`, `-3`…
+- Budget, model and time limit as in `process` (`--budget`, `--model`, `--playbook`).
+
+### 4.17 Distribution
 - Public repository (MIT) and npm package `ticketsmith` containing only the bundle; company data never enters either (guarded by `scripts/guard-private-terms.ts`).
 - A Claude Code plugin and marketplace in the same repository: the plugin runs `npx -y ticketsmith@latest mcp` and ships skills, so users get new releases without reinstalling.
 - The CLI announces new releases on stderr, at most once a day, never from `mcp`, `--json`, CI or non-terminals.
@@ -350,6 +361,7 @@ Autonomy: steps 1–3 are L1 (files only); steps 4–6 are L3 (§4.9).
 | `ticketsmith comment <KEY>` / `transition <KEY> [status]` | 11 | Post the comment or move the ticket after you read and confirm it (L2) |
 | `ticketsmith classify <KEY>` | 10 | Classify only |
 | `ticketsmith process <KEY>` / `--next` | 6 | End-to-end processing |
+| `ticketsmith investigate "<question>"` | 14 | Read-only investigation of a feature, flow or data without a ticket |
 | `ticketsmith mcp` | 2 | stdio MCP server |
 | `ticketsmith project agent [--runtime claude-code\|sdk]` | 12 | What runs the agent and its limits |
 | `ticketsmith metabase publish <KEY>` | 12 | Creates a Metabase question from `report.sql` after you agree |

@@ -16,6 +16,7 @@
 | `classify/` | `classify <KEY>` | — |
 | `evals/` | `eval`, `eval add <KEY>` | — |
 | `process/` | `process <KEY>`, `process --next` | — |
+| `investigate/` | `investigate "<question>"` | — |
 | `mcp/` | `mcp`, `mcp setup` | — |
 
 Rules: a feature never imports another feature (shared code goes to `core/`), and it imports core modules only through their `index.ts`. How to add one: [docs/guides/adding-a-feature.md](../../docs/guides/adding-a-feature.md).
