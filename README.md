@@ -8,13 +8,13 @@ It is **safe by construction**. Claude never gets credentials or a raw connectio
 > - tickets from JIRA Cloud or Data Center;
 > - database reads on MySQL 8 and PostgreSQL;
 > - code reading across your repositories;
-> - end-to-end ticket investigation (`ticketsmith process`);
+> - end-to-end ticket investigation (`tsmith process`);
 > - human-approved database changes;
-> - code fixes with tests and pull requests (`ticketsmith code`);
-> - new functionality with a design checkpoint (`ticketsmith feature`);
+> - code fixes with tests and pull requests (`tsmith code`);
+> - new functionality with a design checkpoint (`tsmith feature`);
 > - classification with resolved cases and evals;
-> - JIRA comments and transitions you confirm (`ticketsmith comment` / `transition`);
-> - report queries published as Metabase questions (`ticketsmith metabase publish`);
+> - JIRA comments and transitions you confirm (`tsmith comment` / `transition`);
+> - report queries published as Metabase questions (`tsmith metabase publish`);
 > - agent runs with your Claude Code login or the Agent SDK with an API key.
 >
 > See the [roadmap](docs/roadmap.md).
@@ -25,10 +25,10 @@ You need Node 24+ and [Claude Code](https://claude.com/claude-code).
 
 ```sh
 npm install -g ticketsmith
-ticketsmith project init                 # set up a project: ticket source, databases…
+tsmith project init                      # set up a project: ticket source, databases…
 ```
 
-The package also installs `tsmith`, a shorter alias for the same command (`tsmith list`, `tsmith process OPS-123`).
+The package installs the command as `tsmith` (used in this README) and as `ticketsmith`; both are the same.
 
 Then add the Claude Code plugin. It brings the MCP server (always the latest npm release, through `npx`) and the ticket-investigation skill:
 
@@ -56,7 +56,7 @@ Step by step on a new machine: [docs/guides/getting-started.md](docs/guides/gett
 | JIRA | A scoped, read-only API token. |
 | Database reads | Exactly one `SELECT`, parsed (never regex) and checked by a two-layer guard that rejects comment tricks and inspects the whole tree. Only the SQL regenerated from the validated tree runs, in a read-only session and transaction, with a time limit and a row limit, and it is always rolled back. This holds even for a write-capable account. |
 | Sensitive data | Emails, phones, tax ids, bank accounts, cards and secrets become placeholders such as `[EMAIL_1]@northwind.mx` inside the tools. Claude can pass them back in JQL or SQL and the server substitutes the real value, so the model never sees it. |
-| Writes | JIRA comments and transitions only when the ticket source has `allowWrites`, posted by you from the CLI after reading the exact text (`ticketsmith comment` / `transition`); the agent has no JIRA write tool. Code changes only in repositories you mark `allowCodeChanges`, in a worktree per ticket, pushed only after you say yes (never to protected branches). Database changes only on databases you mark `allowChanges`: the agent **proposes** one INSERT/UPDATE (no DELETE or DDL, ever), Ticketsmith validates it, counts the rows and prepares a rollback, and **you approve it in your terminal** by typing the database name. Later phases add JIRA comments and pull requests the same way. |
+| Writes | JIRA comments and transitions only when the ticket source has `allowWrites`, posted by you from the CLI after reading the exact text (`tsmith comment` / `transition`); the agent has no JIRA write tool. Code changes only in repositories you mark `allowCodeChanges`, in a worktree per ticket, pushed only after you say yes (never to protected branches). Database changes only on databases you mark `allowChanges`: the agent **proposes** one INSERT/UPDATE (no DELETE or DDL, ever), Ticketsmith validates it, counts the rows and prepares a rollback, and **you approve it in your terminal** by typing the database name. Later phases add JIRA comments and pull requests the same way. |
 | Audit | Every MCP call is logged locally, without its content. |
 
 Details: [requirements](docs/requirements.md) §2 and [ADR 0019](docs/decisions/0019-two-layer-read-guard.md).
@@ -66,23 +66,23 @@ Details: [requirements](docs/requirements.md) §2 and [ADR 0019](docs/decisions/
 Everything happens inside a **project**, one per product you support (e.g. `billing`). A project holds its integrations, its masking rules and its investigated knowledge. Every integration is optional: a ticket source, any number of databases (grouped when they share a schema) and any number of git repositories.
 
 ```sh
-ticketsmith project init              # guided, resumable onboarding: configure, verify and investigate
-ticketsmith project status            # what is configured, investigated or pending
-ticketsmith project refresh           # investigate again and rebuild knowledge/brief.md
-ticketsmith project add|remove tickets|databases|repos|metabase
-ticketsmith project agent             # what runs the agent (Claude Code or the Agent SDK) and its limits
-ticketsmith doctor                    # check every configured integration
-ticketsmith jira discover             # pick the JIRA project/board and save the JQL
-ticketsmith list --limit 20           # prioritized open tickets
-ticketsmith show OPS-123              # ticket as Markdown (--json, --out, --mask)
-ticketsmith db ask "SELECT id, email FROM users WHERE id = 1" --db shard1
-ticketsmith db ask "SELECT id FROM accounts WHERE email = 'x@acme.com'" --group shards
-ticketsmith process OPS-123           # the agent investigates: out/OPS-123/analysis.md + jira_comment.md
-ticketsmith process --next            # the next ticket of the JQL without an analysis
-ticketsmith investigate "review how accounts are deactivated"  # no ticket: out/investigations/<date>-<slug>/
-ticketsmith project refresh repos --deep  # the agent writes knowledge/repos/<name>.analysis.md
-ticketsmith metabase publish OPS-124  # out/OPS-124/report.sql as a Metabase question, after you agree
-ticketsmith mcp                       # the MCP server (the plugin runs it for you)
+tsmith project init                   # guided, resumable onboarding: configure, verify and investigate
+tsmith project status                 # what is configured, investigated or pending
+tsmith project refresh                # investigate again and rebuild knowledge/brief.md
+tsmith project add|remove tickets|databases|repos|metabase
+tsmith project agent                  # what runs the agent (Claude Code or the Agent SDK) and its limits
+tsmith doctor                         # check every configured integration
+tsmith jira discover                  # pick the JIRA project/board and save the JQL
+tsmith list --limit 20                # prioritized open tickets
+tsmith show OPS-123                   # ticket as Markdown (--json, --out, --mask)
+tsmith db ask "SELECT id, email FROM users WHERE id = 1" --db shard1
+tsmith db ask "SELECT id FROM accounts WHERE email = 'x@acme.com'" --group shards
+tsmith process OPS-123                # the agent investigates: out/OPS-123/analysis.md + jira_comment.md
+tsmith process --next                 # the next ticket of the JQL without an analysis
+tsmith investigate "review how accounts are deactivated"  # no ticket: out/investigations/<date>-<slug>/
+tsmith project refresh repos --deep  # the agent writes knowledge/repos/<name>.analysis.md
+tsmith metabase publish OPS-124       # out/OPS-124/report.sql as a Metabase question, after you agree
+tsmith mcp                            # the MCP server (the plugin runs it for you)
 ```
 
 Global options: `--project <name>` (or `TICKETSMITH_PROJECT`), `--json`, `--verbose`.
@@ -100,15 +100,15 @@ Global options: `--project <name>` (or `TICKETSMITH_PROJECT`), `--json`, `--verb
 | `repo_files`, `repo_search`, `repo_read` | repos | List tracked files, search code across repositories (`git grep`), read a file with line numbers, at any branch |
 | `knowledge_read`, `knowledge_search` | — | The project brief, repository maps and analyses, database schemas and playbooks |
 
-Tools only appear when the project has the integration they need. Without the plugin, `ticketsmith mcp setup` prints the `claude mcp add` command to register the server yourself.
+Tools only appear when the project has the integration they need. Without the plugin, `tsmith mcp setup` prints the `claude mcp add` command to register the server yourself.
 
 ### Investigating a ticket end to end
 
-`ticketsmith process <KEY>` runs Claude Code headless (your own Claude Code login) with the `bug` playbook and **only Ticketsmith's tools**: no shell, no file access, nothing that writes. Everything the agent reads is masked; when it finishes, the real values are put back in your local copy of its answer (secrets stay masked). It writes `out/<KEY>/analysis.md` (probable cause, evidence with `repo/file:line` and queries, confidence, next steps) and `jira_comment.md`, which you review and paste yourself. Limits live in `project.yaml` (`agent.maxBudgetUsd`, default $3; `agent.timeoutMinutes`, default 20); `--budget` and `--model` override them. Add your own playbooks as `knowledge/playbooks/<name>.md` and use them with `--playbook <name>`.
+`tsmith process <KEY>` runs Claude Code headless (your own Claude Code login) with the `bug` playbook and **only Ticketsmith's tools**: no shell, no file access, nothing that writes. Everything the agent reads is masked; when it finishes, the real values are put back in your local copy of its answer (secrets stay masked). It writes `out/<KEY>/analysis.md` (probable cause, evidence with `repo/file:line` and queries, confidence, next steps) and `jira_comment.md`, which you review and paste yourself. Limits live in `project.yaml` (`agent.maxBudgetUsd`, default $3; `agent.timeoutMinutes`, default 20); `--budget` and `--model` override them. Add your own playbooks as `knowledge/playbooks/<name>.md` and use them with `--playbook <name>`.
 
 ### Investigating without a ticket
 
-`ticketsmith investigate "<question>"` runs the same agent with a question instead of a ticket, to review a feature, a flow or the data before anyone reports a problem. It is read-only (no code changes, no proposed database writes) and works for projects without a ticket source. The question is masked before it reaches the agent. It writes `out/investigations/<date>-<slug>/analysis.md` with findings ordered by severity, each with its confidence and evidence. The agent reads code and data; it does not run the application, so findings come from analysis, not execution.
+`tsmith investigate "<question>"` runs the same agent with a question instead of a ticket, to review a feature, a flow or the data before anyone reports a problem. It is read-only (no code changes, no proposed database writes) and works for projects without a ticket source. The question is masked before it reaches the agent. It writes `out/investigations/<date>-<slug>/analysis.md` with findings ordered by severity, each with its confidence and evidence. The agent reads code and data; it does not run the application, so findings come from analysis, not execution.
 
 ### JIRA token
 
@@ -125,10 +125,10 @@ Create an **API token with scopes** at https://id.atlassian.com/manage-profile/s
 Mark a repository with `allowCodeChanges: true` (or answer yes in `project add repos`) and run:
 
 ```sh
-ticketsmith code OPS-123          # worktree + branch from the fix branch, the agent fixes and tests
-ticketsmith code push OPS-123     # asks per repository, pushes (never forced) and opens the PR
-ticketsmith code status           # worktrees, branches, tests, pull requests
-ticketsmith code discard OPS-123  # removes the worktrees and local branches
+tsmith code OPS-123               # worktree + branch from the fix branch, the agent fixes and tests
+tsmith code push OPS-123          # asks per repository, pushes (never forced) and opens the PR
+tsmith code status                # worktrees, branches, tests, pull requests
+tsmith code discard OPS-123       # removes the worktrees and local branches
 ```
 
 The agent edits only inside the ticket's worktrees and has no shell: it runs your configured `testCommand` through Ticketsmith, which runs the tests again itself before showing you the diff. Branches follow `branchPattern` (default `fix/{key}-{slug}`, e.g. `hotfix/{key}-{slug}`). Pull requests open through GitHub (or GitHub Enterprise with `host.apiUrl`) and Bitbucket Cloud with an API token stored in the keychain on first use; for any other host you get the link and the description to paste.
@@ -138,12 +138,12 @@ The agent edits only inside the ticket's worktrees and has no shell: it runs you
 `knowledge/ticket-types.md` (drafted at onboarding from your issue types; review it) lists your ticket types, the signals that find them and the command that handles each one. Rules decide when they are sure; otherwise a short LLM run does, and you choose when it is unsure too.
 
 ```sh
-ticketsmith classify OPS-123             # type, confidence, who decided, and the command to run next
-ticketsmith process OPS-123              # without --playbook it classifies first
-ticketsmith knowledge add OPS-123 --note "Expired card; customer updated it"   # a masked resolved case
-ticketsmith eval add OPS-123             # a masked snapshot with the right type and the real solution
-ticketsmith eval                          # classification accuracy; fails on regressions
-ticketsmith eval --full --budget 5        # also runs the playbooks and an LLM judge
+tsmith classify OPS-123                  # type, confidence, who decided, and the command to run next
+tsmith process OPS-123                   # without --playbook it classifies first
+tsmith knowledge add OPS-123 --note "Expired card; customer updated it"        # a masked resolved case
+tsmith eval add OPS-123                  # a masked snapshot with the right type and the real solution
+tsmith eval                               # classification accuracy; fails on regressions
+tsmith eval --full --budget 5             # also runs the playbooks and an LLM judge
 ```
 
 ### New functionality
@@ -151,12 +151,12 @@ ticketsmith eval --full --budget 5        # also runs the playbooks and an LLM j
 New functionality gets a design checkpoint before any code is written:
 
 ```sh
-ticketsmith feature OPS-123              # understand + spec + plan; questions go to out/OPS-123/feature/questions.md
-ticketsmith feature OPS-123              # after you answer them under "Answer:", it redesigns with the answers
-ticketsmith feature approve OPS-123      # interactive: only an approved plan can be built
-ticketsmith feature reject OPS-123 --feedback "also 20+ units: 10% off"
-ticketsmith feature implement OPS-123    # worktrees from the feature branch, tests, criteria met or not
-ticketsmith feature push OPS-123         # asks per repository; PRs name the ticket and link each other
+tsmith feature OPS-123                   # understand + spec + plan; questions go to out/OPS-123/feature/questions.md
+tsmith feature OPS-123                   # after you answer them under "Answer:", it redesigns with the answers
+tsmith feature approve OPS-123           # interactive: only an approved plan can be built
+tsmith feature reject OPS-123 --feedback "also 20+ units: 10% off"
+tsmith feature implement OPS-123         # worktrees from the feature branch, tests, criteria met or not
+tsmith feature push OPS-123              # asks per repository; PRs name the ticket and link each other
 ```
 
 Schema changes come as migration files in the repository for review; Ticketsmith never runs DDL against your databases.
@@ -174,17 +174,17 @@ The SDK gets the same boundary as Claude Code: only Ticketsmith's tools, no shel
 
 ### Metabase reports
 
-`project add metabase` stores the Metabase URL, an API key (Admin → Settings → Authentication → API keys) and which Metabase database each project database is. For a report ticket, `ticketsmith process OPS-124 --playbook report` writes `out/OPS-124/report.sql` with Metabase variables such as `{{start_date}}`. Then `ticketsmith metabase publish OPS-124` shows the question, its database and the variables it guessed (dates, numbers, text). After you agree, it creates the question in your collection. The agent never talks to Metabase.
+`project add metabase` stores the Metabase URL, an API key (Admin → Settings → Authentication → API keys) and which Metabase database each project database is. For a report ticket, `tsmith process OPS-124 --playbook report` writes `out/OPS-124/report.sql` with Metabase variables such as `{{start_date}}`. Then `tsmith metabase publish OPS-124` shows the question, its database and the variables it guessed (dates, numbers, text). After you agree, it creates the question in your collection. The agent never talks to Metabase.
 
 ### Approved database changes
 
-Mark a database with `allowChanges: true` (or answer yes in `project add databases`) and the agent can propose one `INSERT … VALUES` or `UPDATE … WHERE` per change, typically with `ticketsmith process OPS-123 --playbook service-request`. Nothing runs until you decide:
+Mark a database with `allowChanges: true` (or answer yes in `project add databases`) and the agent can propose one `INSERT … VALUES` or `UPDATE … WHERE` per change, typically with `tsmith process OPS-123 --playbook service-request`. Nothing runs until you decide:
 
 ```sh
-ticketsmith changes list                 # proposals, newest first
-ticketsmith changes show cr-1a2b3c4d     # exact SQL with real values, affected rows, current values, rollback
-ticketsmith changes approve cr-1a2b3c4d  # interactive: re-checks, then you type the database name
-ticketsmith changes reject cr-1a2b3c4d --reason "not needed"
+tsmith changes list                      # proposals, newest first
+tsmith changes show cr-1a2b3c4d          # exact SQL with real values, affected rows, current values, rollback
+tsmith changes approve cr-1a2b3c4d       # interactive: re-checks, then you type the database name
+tsmith changes reject cr-1a2b3c4d --reason "not needed"
 ```
 
 Approval re-runs the checks (the data may have moved), runs the statement in a transaction and commits only if the database affects exactly the rows you saw; otherwise it rolls back. The SQL, the rollback script and the result are saved to `out/<KEY>/change-<id>/`. Proposals expire after an hour; `changes.maxRows` (default 100) caps each change.
@@ -200,11 +200,11 @@ A project folder is git-ready: `project.yaml` and `knowledge/` are shared, while
 ```sh
 cd ~/.local/share/ticketsmith/projects/billing && git remote add origin <url> && git push -u origin main
 # a teammate:
-git clone <url> ~/work/ticketsmith-billing && ticketsmith project link ~/work/ticketsmith-billing
-ticketsmith project add tickets       # their own credentials
+git clone <url> ~/work/ticketsmith-billing && tsmith project link ~/work/ticketsmith-billing
+tsmith project add tickets            # their own credentials
 ```
 
-Without git: `ticketsmith project export <dir>` / `project import <dir>`. Secrets never travel.
+Without git: `tsmith project export <dir>` / `project import <dir>`. Secrets never travel.
 
 ## Where data lives
 
