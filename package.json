@@ -25,7 +25,8 @@
   "license": "MIT",
   "author": "Ticketsmith contributors",
   "bin": {
-    "ticketsmith": "dist/main.js"
+    "ticketsmith": "dist/main.js",
+    "tsmith": "dist/main.js"
   },
   "imports": {
     "#src/*": "./src/*",

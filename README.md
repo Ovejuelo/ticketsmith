@@ -28,6 +28,8 @@ npm install -g ticketsmith
 ticketsmith project init                 # set up a project: ticket source, databases…
 ```
 
+The package also installs `tsmith`, a shorter alias for the same command (`tsmith list`, `tsmith process OPS-123`).
+
 Then add the Claude Code plugin. It brings the MCP server (always the latest npm release, through `npx`) and the ticket-investigation skill:
 
 ```sh

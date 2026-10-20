@@ -61,7 +61,7 @@ export const buildProgram = (version: string, context: CliContext): Command => {
 
   const program = new Command('ticketsmith')
     .description(
-      'Investigates and resolves tickets with a Claude agent; humans approve side effects.',
+      'Investigates and resolves tickets with a Claude agent; humans approve side effects. Also available as `tsmith`.',
     )
     .version(version, '-V, --version', 'print the version')
     .helpOption('-h, --help', 'show help')
