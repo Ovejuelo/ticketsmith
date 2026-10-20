@@ -142,3 +142,26 @@ export const FeatureImplementationSchema = CodeChangeSchema.extend({
     .describe('Migration files you added (repo/path), never run'),
 })
 export type FeatureImplementation = z.infer<typeof FeatureImplementationSchema>
+
+/** The answer of an investigation without a ticket (playbook `investigate`). */
+export const InvestigationSchema = z.object({
+  summary: text('What was investigated and what you found, in two or three sentences'),
+  findings: z
+    .array(
+      z.object({
+        title: text('The problem in one line'),
+        severity: z
+          .enum(['high', 'medium', 'low', 'info'])
+          .describe('high: wrong data or a broken flow; info: worth knowing, not a bug'),
+        confidence: z.enum(['high', 'medium', 'low']),
+        evidence: z.array(EvidenceSchema).min(1).describe('Every fact the finding rests on'),
+        suggestion: text('What to do about it'),
+      }),
+    )
+    .describe('Only findings with evidence; empty when nothing was found'),
+  nextSteps: z.array(z.string().min(1)).describe('What to do next, in order'),
+  openQuestions: z
+    .array(z.string().min(1))
+    .describe('What is still unknown and who could answer it'),
+})
+export type Investigation = z.infer<typeof InvestigationSchema>

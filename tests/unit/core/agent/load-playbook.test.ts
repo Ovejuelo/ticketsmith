@@ -34,4 +34,9 @@ describe('loadPlaybook', () => {
     })
     expect((await loadPlaybook(knowledge, '../secret')).ok).toBe(false)
   })
+
+  it('has a built-in playbook for investigations without a ticket', async () => {
+    const investigate = await loadPlaybook(knowledge, 'investigate')
+    expect(investigate.ok && investigate.value.text).toMatch(/^# Playbook: investigate a question/)
+  })
 })

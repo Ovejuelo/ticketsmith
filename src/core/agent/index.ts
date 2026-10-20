@@ -15,6 +15,8 @@ export {
   FeatureDesignSchema,
   type FeatureImplementation,
   FeatureImplementationSchema,
+  type Investigation,
+  InvestigationSchema,
   type RepoAnalysis,
   RepoAnalysisSchema,
   type TicketAnalysis,

@@ -7,6 +7,7 @@ import { CODE_FIX_PLAYBOOK } from './playbooks/code-fix.ts'
 import { EVAL_JUDGE_PLAYBOOK } from './playbooks/eval-judge.ts'
 import { FEATURE_DESIGN_PLAYBOOK } from './playbooks/feature-design.ts'
 import { FEATURE_IMPLEMENT_PLAYBOOK } from './playbooks/feature-implement.ts'
+import { INVESTIGATE_PLAYBOOK } from './playbooks/investigate.ts'
 import { REPO_ANALYSIS_PLAYBOOK } from './playbooks/repo-analysis.ts'
 import { REPORT_PLAYBOOK } from './playbooks/report.ts'
 import { SERVICE_REQUEST_PLAYBOOK } from './playbooks/service-request.ts'
@@ -18,6 +19,7 @@ export const BUILT_IN_PLAYBOOKS: Readonly<Record<string, string>> = {
   'eval-judge': EVAL_JUDGE_PLAYBOOK,
   'feature-design': FEATURE_DESIGN_PLAYBOOK,
   'feature-implement': FEATURE_IMPLEMENT_PLAYBOOK,
+  investigate: INVESTIGATE_PLAYBOOK,
   'repo-analysis': REPO_ANALYSIS_PLAYBOOK,
   report: REPORT_PLAYBOOK,
   'service-request': SERVICE_REQUEST_PLAYBOOK,
