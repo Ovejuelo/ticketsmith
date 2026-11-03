@@ -53,7 +53,7 @@ src/
 │   ├── tickets/                  list, show, comment, transition + MCP tools jira_get_issue, jira_search
 │   ├── databases/                db ask + MCP tools db_select, db_select_group, db_schema
 │   ├── repos/                    MCP tools repo_list, repo_files, repo_search, repo_read
-│   ├── knowledge/                MCP tools knowledge_read, knowledge_search
+│   ├── knowledge/                knowledge add + MCP tools knowledge_read, knowledge_search, knowledge_save (stdio mcp only)
 │   ├── process/                  process <KEY> | --next: the agent investigates a ticket
 │   ├── investigate/              investigate "<question>": the agent investigates without a ticket, read-only
 │   ├── changes/                  changes list|show|approve|reject: the human decides on proposed DB changes

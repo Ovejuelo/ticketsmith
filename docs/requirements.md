@@ -211,8 +211,9 @@ v1 tools, all read-only:
 | `repo_files` / `repo_search` / `repo_read` | List tracked files (glob), `git grep` across repositories, read a file with line numbers, at any ref | Tracked content only (git objects); refs and paths validated; masked |
 | `db_propose_change` | Proposes one INSERT/UPDATE for human approval (only on databases with `allowChanges`) | Write guard → read-only preflight → stored change request; never executes |
 | `knowledge_read` / `knowledge_search` | Read a knowledge file (`brief.md` first) / search all of them (file:line) | `.md` inside `knowledge/` only (symlinks resolved); content already masked |
+| `knowledge_save` | Saves a resolved case (`cases/<KEY>.md`) or a note (`notes/<topic>.md`) from an interactive Claude Code session (ADR 0032) | Only in the stdio `mcp` session, never in agent runs; only `cases/` and `notes/`; masked; appends, never overwrites; content audited by length |
 
-Every tool call is recorded in the audit log.
+Every tool call is recorded in the audit log, with its input masked by the session vault.
 
 **Masking (implemented in phase 2, `core/security`):**
 - Built-in detectors, applied in this order: `secret` (JWT, Bearer/Basic, Stripe, AWS, GitHub, Atlassian, Slack keys, `password=`-style pairs, URL credentials) → `email` → `curp` → `rfc` → `clabe` → `card` → `phone`.
@@ -300,7 +301,8 @@ The agent has no approve tool. Nothing in the MCP server can turn a proposal int
 - `ticket-types.md`: types, signals and classification rules (YAML front matter).
 - `playbooks/<type>.md`: how each type is resolved, which tools to use and the output format.
 - `schema-notes.md`: data model notes the schema does not tell (states, soft deletes, multi-tenancy…).
-- `cases/<KEY>.md`: resolved and approved cases (ticket → classification → solution), written masked by `ticketsmith knowledge add <KEY>` or at the end of `process`/`code`/`feature implement` in a terminal (which also asks whether the classification was right).
+- `cases/<KEY>.md`: resolved and approved cases (ticket → classification → solution), written masked by `ticketsmith knowledge add <KEY>` or at the end of `process`/`code`/`feature implement` in a terminal (which also asks whether the classification was right). From Claude Code, `knowledge_save` writes the same kind of case when the user agrees.
+- `notes/<topic>.md`: findings without a ticket, saved from Claude Code with `knowledge_save`.
 
 It is not training: it is **curated context** that grows with use.
 

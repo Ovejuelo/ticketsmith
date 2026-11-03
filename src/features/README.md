@@ -12,7 +12,7 @@
 | `metabase/` | `metabase publish <KEY>` | — |
 | `code/` | `code <KEY>`, `code push\|status\|discard`, `feature <KEY>`, `feature approve\|reject\|implement\|push\|status` | `code_run_tests`, `code_diff` (code sessions only) |
 | `repos/` | — | `repo_list`, `repo_files`, `repo_search`, `repo_read` |
-| `knowledge/` | `knowledge add <KEY>` | `knowledge_read`, `knowledge_search` |
+| `knowledge/` | `knowledge add <KEY>` | `knowledge_read`, `knowledge_search`, `knowledge_save` (interactive `mcp` only) |
 | `classify/` | `classify <KEY>` | — |
 | `evals/` | `eval`, `eval add <KEY>` | — |
 | `process/` | `process <KEY>`, `process --next` | — |

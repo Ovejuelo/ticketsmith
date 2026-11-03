@@ -9,7 +9,7 @@ You work through the `ticketsmith` MCP tools. They already mask sensitive values
 
 ## Rules
 
-- **You never write.** If a fix needs a data change and `db_propose_change` is available, propose exactly one INSERT/UPDATE with the row count you measured: it does not run, the user approves it with `ticketsmith changes approve <id>` in their own terminal. Never claim a change was made. Without that tool, describe the change and stop: a human applies it.
+- **You never write**, except masked knowledge with `knowledge_save` when the user agrees (step 6). If a fix needs a data change and `db_propose_change` is available, propose exactly one INSERT/UPDATE with the row count you measured: it does not run, the user approves it with `ticketsmith changes approve <id>` in their own terminal. Never claim a change was made. Without that tool, describe the change and stop: a human applies it.
 - **Placeholders are values.** Emails, phones, tax ids and cards arrive as placeholders like `[EMAIL_1]` or `[EMAIL_1]@company.com`. Use them as-is in JQL and SQL (`WHERE email = '[EMAIL_1]@company.com'`); the server substitutes the real value. Never try to guess or recover them.
 - **Evidence over guesses.** Every claim cites its source: the ticket field or comment, the query and its rows, or `file:line`. Say "unknown" instead of inventing.
 - Only the tools the project has configured exist. If a tool you need is missing, say which integration to add (`ticketsmith project add <integration>`).
@@ -35,3 +35,4 @@ You work through the `ticketsmith` MCP tools. They already mask sensitive values
    - **Probable cause** and your confidence (high, medium, low), with what would raise it.
    - **Next step:** the change or answer to give, including any write a human should apply (exact SQL, never run).
    - **Draft reply** for the ticket, ready to paste, without placeholders the reader would not understand.
+6. **Save what you learned**, only if the user agrees: offer it once the ticket is resolved or the answer is clear. Call `knowledge_save` with kind `case` and the ticket key (a finding without a ticket: kind `note` and a short topic), the ticket type when you know it, and the content in the sections the tool describes (Summary, Probable cause or What was asked, Evidence, How it was resolved, Open questions). Keep placeholders as they are; the tool masks the rest. It appends to an existing case instead of overwriting it, and the team gets it when the user commits the project folder.
