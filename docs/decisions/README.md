@@ -37,3 +37,4 @@ Template: `# NNNN. Title` · **Status** · **Context** (why it came up) · **Dec
 | [0029](0029-agent-runtimes.md) | Agent runtimes: signed-in Claude Code or the Agent SDK with an API key |
 | [0030](0030-ticket-sources-and-metabase.md) | More ticket sources (JIRA Data Center) and Metabase as an integration |
 | [0031](0031-investigations-without-a-ticket.md) | Investigations without a ticket: a read-only agent run from a question |
+| [0032](0032-knowledge-from-claude-code.md) | Saving knowledge from Claude Code: `knowledge_save`, interactive sessions only |
