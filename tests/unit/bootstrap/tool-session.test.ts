@@ -1,6 +1,7 @@
 import { request } from 'node:http'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { openToolSession, startHttpToolServer } from '#src/bootstrap/tool-session.ts'
@@ -74,6 +75,7 @@ describe('HTTP tool server for agent runs', () => {
       expect.arrayContaining(['jira_get_issue', 'jira_search', 'knowledge_read']),
     )
     expect(tools).not.toContain('db_select')
+    expect(tools).not.toContain('knowledge_save')
   })
 
   it('rejects requests without the token, with a wrong one, or for another host', async () => {
@@ -150,5 +152,20 @@ describe('HTTP tool server for agent runs', () => {
     await server.close()
     await expect(fetch(url, { method: 'POST', headers })).rejects.toThrow()
     server = await start() // afterEach closes this one
+  })
+
+  it('offers knowledge_save only to sessions that allow writing knowledge (stdio mcp)', async () => {
+    const opened = await openProject(cli.services, undefined)
+    const session = await openToolSession(cli.services, opened, {
+      version: '1.2.3',
+      auditCommand: 'mcp',
+      knowledgeWritable: true,
+    })
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    const client = new Client({ name: 'claude-code', version: '1' })
+    await Promise.all([session.server.connect(serverTransport), client.connect(clientTransport)])
+    clients.push(client)
+    expect((await client.listTools()).tools.map((tool) => tool.name)).toContain('knowledge_save')
+    await session.close()
   })
 })

@@ -28,6 +28,8 @@ export type ToolSessionOptions = {
   readonly only?: ((toolName: string) => boolean) | undefined
   readonly code?: CodeToolContext | undefined
   readonly tickets?: TicketSource | undefined
+  /** Lets the session save cases and notes (knowledge_save): only the interactive stdio `mcp`. */
+  readonly knowledgeWritable?: boolean | undefined
 }
 
 /** One MCP server over the project's tools, with its vault, audit and lazily opened databases. */
@@ -92,7 +94,10 @@ export const openToolSession = async (
       project.integrations.repos === undefined
         ? null
         : { repositories: projectRepositories(project, paths), knowledgeDir: paths.knowledgeDir },
-    knowledge: { dir: paths.knowledgeDir },
+    knowledge: {
+      dir: paths.knowledgeDir,
+      writable: options.knowledgeWritable === true ? { masking: project.masking } : undefined,
+    },
     code: options.code ?? null,
   }
 

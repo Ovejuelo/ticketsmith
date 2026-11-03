@@ -23,6 +23,18 @@ export type McpServerDeps = {
 const MASKING_NOTE =
   'Sensitive values (emails, phones, RFC/CURP, CLABE, cards, secrets) are replaced with placeholders such as [EMAIL_1] or [EMAIL_1]@company.com; a placeholder means the same value for the whole session. Do not try to recover them: pass placeholders as-is in tool inputs (e.g. JQL) and the server substitutes the real values.'
 
+/** Masks every string inside a JSON-like value, leaving its shape alone. */
+const maskStrings = (value: unknown, mask: (text: string) => string): unknown => {
+  if (typeof value === 'string') return mask(value)
+  if (Array.isArray(value)) return value.map((item) => maskStrings(item, mask))
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, maskStrings(item, mask)]),
+    )
+  }
+  return value
+}
+
 /**
  * Registers the features' tools and wraps every call with masking and auditing, so no tool can
  * skip either. One placeholder vault per server process, i.e. per client session; never persisted.
@@ -65,11 +77,17 @@ export const createMcpServer = (deps: McpServerDeps): McpServer => {
 
         // Errors can echo user input (JQL, keys), so they are masked too.
         const masked = vault.mask(result.ok ? result.value : result.error, deps.masking)
+        // Inputs can carry real values the agent typed (an email in JQL), so they are masked too.
+        const given = Object.fromEntries(
+          Object.entries(input).filter(([, value]) => value !== undefined),
+        )
+        const auditedInput = maskStrings(
+          tool.auditInput?.(given) ?? given,
+          (text) => vault.mask(text, deps.masking).text,
+        ) as Record<string, unknown>
         await deps.audit.record({
           tool: tool.name,
-          input: Object.fromEntries(
-            Object.entries(input).filter(([, value]) => value !== undefined),
-          ),
+          input: auditedInput,
           ok: result.ok,
           ...(result.ok ? {} : { error: masked.text }),
           durationMs: clock() - started,

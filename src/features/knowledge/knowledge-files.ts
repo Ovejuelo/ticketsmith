@@ -1,4 +1,4 @@
-import { readdir, readFile, realpath } from 'node:fs/promises'
+import { lstat, mkdir, readdir, readFile, realpath } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { err, ok, type Result } from '../../core/kernel/index.ts'
 
@@ -59,4 +59,34 @@ export const listKnowledge = async (dir: string): Promise<readonly string[]> => 
     if (resolved.ok) files.push(path.split(sep).join('/'))
   }
   return files.sort()
+}
+
+/**
+ * Where a new or updated knowledge file goes: `<folder>/<name>.md` under the real knowledge folder.
+ * Refuses a folder or file that resolves (through symlinks) outside it. Returns the file's current
+ * content when it already exists, so callers can append instead of overwriting.
+ */
+export const resolveWritableKnowledgeFile = async (
+  dir: string,
+  folder: string,
+  name: string,
+): Promise<Result<{ readonly root: string; readonly existing: string | null }, string>> => {
+  const outside = err(`knowledge/${folder}/${name} is outside the knowledge folder`)
+  let root: string
+  try {
+    await mkdir(join(dir, folder), { recursive: true })
+    root = await realpath(dir)
+  } catch (error) {
+    return err(`Cannot prepare knowledge/${folder}: ${String(error)}`)
+  }
+  const target = await realpath(join(root, folder))
+  if (target !== join(root, folder)) return outside
+  const file = join(target, name)
+  try {
+    const entry = await lstat(file)
+    if (!entry.isFile()) return outside
+    return ok({ root, existing: await readFile(file, 'utf8') })
+  } catch {
+    return ok({ root, existing: null })
+  }
 }

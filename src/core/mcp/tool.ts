@@ -3,6 +3,7 @@ import type { TableInfo } from '../database/index.ts'
 import { err, ok, type Result } from '../kernel/index.ts'
 import type { Integration } from '../project/index.ts'
 import type { Repository } from '../repos/index.ts'
+import type { MaskingOptions } from '../security/index.ts'
 import type { DatabaseConnections } from '../services/index.ts'
 import type { TicketSource } from '../tickets/index.ts'
 
@@ -45,8 +46,15 @@ export type ToolContext = {
   readonly databases: DatabasesToolContext | null
   /** Null when the project has no repositories. */
   readonly repos: ReposToolContext | null
-  /** The project's knowledge folder (always there; its files are masked when written). */
-  readonly knowledge: { readonly dir: string }
+  /**
+   * The project's knowledge folder (always there; its files are masked when written). `writable`
+   * (with the project's masking rules) is set only in the interactive `ticketsmith mcp` session,
+   * never in unattended agent runs.
+   */
+  readonly knowledge: {
+    readonly dir: string
+    readonly writable?: { readonly masking: MaskingOptions } | undefined
+  }
   /** Only in code-change sessions. */
   readonly code?: CodeToolContext | null
   /** Turns session placeholders ([EMAIL_1]) back into real values; fails on unknown ones. */
@@ -66,6 +74,8 @@ export type Tool = {
   readonly requires: readonly Integration[]
   /** Read-only tools are annotated as such; write tools must go through human approval. */
   readonly readOnly: boolean
+  /** What the audit log records of the input (already masked); default: the whole input. */
+  readonly auditInput?: (input: Readonly<Record<string, unknown>>) => Record<string, unknown>
   /** Extra condition on the project's setup (e.g. a database allows changes); default: always. */
   readonly availableWhen?: (context: Omit<ToolContext, 'resolvePlaceholders'>) => boolean
   run(input: unknown, context: ToolContext): Promise<Result<string, string>>
