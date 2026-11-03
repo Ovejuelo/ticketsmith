@@ -30,7 +30,11 @@ export const buildProgram = (version: string, context: CliContext): Command => {
   const serveMcp = async (command: Command): Promise<void> => {
     const current = servicesFor(command)
     const opened = await openProject(current, globalOptions(command).project)
-    const session = await openToolSession(current, opened, { version, auditCommand: 'mcp' })
+    const session = await openToolSession(current, opened, {
+      version,
+      auditCommand: 'mcp',
+      knowledgeWritable: true,
+    })
     session.server.server.onclose = () => void session.close()
     process.stdin.once('end', () => void session.close().finally(() => process.exit(0)))
     await session.server.connect(new StdioServerTransport())

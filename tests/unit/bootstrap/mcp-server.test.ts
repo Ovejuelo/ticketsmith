@@ -125,6 +125,17 @@ describe('ticketsmith MCP server', () => {
     expect(JSON.stringify(audit.entries)).not.toContain('ana@acme.mx')
   })
 
+  it('masks real values the agent typed in tool inputs before auditing them', async () => {
+    const jql = 'text ~ "luis@gmail.com" AND text ~ "4111 1111 1111 1111"'
+    await client.callTool({ name: 'jira_search', arguments: { jql } })
+
+    expect(source.queries).toEqual([{ query: jql, limit: 20 }])
+    const audited = JSON.stringify(audit.entries)
+    expect(audited).not.toContain('luis@gmail.com')
+    expect(audited).not.toContain('4111 1111 1111 1111')
+    expect(audit.entries[0]?.input).toEqual({ jql: 'text ~ "[EMAIL_1]" AND text ~ "[CARD_1]"' })
+  })
+
   it('refuses placeholders it never issued instead of sending them to JIRA', async () => {
     const result = await client.callTool({
       name: 'jira_search',
