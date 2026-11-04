@@ -40,10 +40,15 @@ const maskStrings = (value: unknown, mask: (text: string) => string): unknown =>
  * skip either. One placeholder vault per server process, i.e. per client session; never persisted.
  */
 export const createMcpServer = (deps: McpServerDeps): McpServer => {
+  const tools = deps.tools.filter((tool) => isToolAvailable(tool, deps.integrations, deps.context))
   const server = new McpServer(
     { name: 'ticketsmith', version: deps.version },
     {
-      instructions: `Tools for the "${deps.project}" project. ${MASKING_NOTE}`,
+      instructions: [
+        `Tools for the "${deps.project}" project.`,
+        MASKING_NOTE,
+        ...tools.flatMap((tool) => (tool.instruction === undefined ? [] : [tool.instruction])),
+      ].join(' '),
     },
   )
   const vault = deps.vault ?? new PlaceholderVault()
@@ -53,9 +58,7 @@ export const createMcpServer = (deps: McpServerDeps): McpServer => {
   }
   const clock = deps.clock ?? Date.now
 
-  for (const tool of deps.tools.filter((tool) =>
-    isToolAvailable(tool, deps.integrations, deps.context),
-  )) {
+  for (const tool of tools) {
     server.registerTool(
       tool.name,
       {

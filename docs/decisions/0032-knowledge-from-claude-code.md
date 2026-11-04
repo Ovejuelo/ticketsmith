@@ -11,6 +11,7 @@ Used straight from Claude Code (`ticketsmith mcp`, the plugin), Ticketsmith coul
 - **Never overwrite:** an existing file gets a dated `## Update` section appended, so a case a person saved can't be lost.
 - **Masked and confined:** written through `writeKnowledge`, which masks with the project's rules. Placeholders stay as they are (knowledge is shared, so it is never revealed). A folder or file that resolves through symlinks outside `knowledge/` is refused.
 - **Interactive sessions only:** `ToolContext.knowledge.writable` (carrying the project's masking rules) is set only by the stdio `mcp` session. Agent runs (`process`, `code`, `feature`, `investigate`, `classify`, `eval`, `refresh`) never register the tool, so saving there stays a person's decision at the end of the command.
+- **Offering to save:** the `investigate-ticket` skill asks Claude to offer saving at the end, but skills load only when the model picks them, and in practice it didn't. So a tool can add an `instruction` to the MCP server's instructions, which the client sends in every session. `knowledge_save` adds one asking Claude to offer saving at the end; it only appears where the tool is registered.
 - **Audit:** the server now masks every tool's input before auditing it (the agent may type a real value in JQL or SQL). A tool can also summarize its input with `auditInput`; `knowledge_save` records its content by length only.
 
 ## Consequences

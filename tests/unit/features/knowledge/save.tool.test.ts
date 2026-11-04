@@ -66,6 +66,11 @@ describe('knowledge_save MCP tool', () => {
     expect(await names(true)).toContain('knowledge_save')
   })
 
+  it('asks the client, in the server instructions, to offer saving at the end', async () => {
+    expect((await connect(true)).getInstructions()).toContain('offer the user to save')
+    expect((await connect(false)).getInstructions()).not.toContain('knowledge_save')
+  })
+
   it('saves a case under cases/<KEY>.md with front matter, masked', async () => {
     const result = await save({
       kind: 'case',

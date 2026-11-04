@@ -32,6 +32,8 @@ export const saveTool = defineTool({
       .describe('Ticket type of a case, e.g. bug or service-request'),
     content: z.string().min(1).max(MAX_CONTENT_CHARS).describe('Markdown body'),
   },
+  instruction:
+    'When you finish investigating a ticket or a question with these tools, offer the user to save what you learned with knowledge_save (a case for a ticket, a note otherwise) and save it only if they agree.',
   requires: [],
   readOnly: false,
   availableWhen: (context) => context.knowledge.writable !== undefined,
