@@ -74,6 +74,11 @@ export type Tool = {
   readonly requires: readonly Integration[]
   /** Read-only tools are annotated as such; write tools must go through human approval. */
   readonly readOnly: boolean
+  /**
+   * A sentence added to the server's instructions when the tool is registered. Clients send those
+   * instructions in every session, unlike skills, which load only when the model picks them.
+   */
+  readonly instruction?: string
   /** What the audit log records of the input (already masked); default: the whole input. */
   readonly auditInput?: (input: Readonly<Record<string, unknown>>) => Record<string, unknown>
   /** Extra condition on the project's setup (e.g. a database allows changes); default: always. */
